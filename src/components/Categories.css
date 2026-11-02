@@ -1,6 +1,6 @@
 /* ==========================================================
-   SUBCATEGORY TILES SECTION WITH SLIDER ARROWS
-   Horizontal carousel with left & right navigation buttons
+   SUBCATEGORY TILES SECTION
+   Horizontal carousel without arrows
    ========================================================== */
 
 .categories-section {
@@ -73,14 +73,14 @@
   overflow: hidden;
 }
 
-/* Slider Track Wrapper with Arrow clearance */
+/* Slider Track Wrapper */
 .categories-slider-wrapper {
   position: relative;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 52px;
+  padding: 0 16px;
 }
 
 /* Smooth Horizontal Scroll Track */
@@ -186,47 +186,6 @@
   text-transform: capitalize;
 }
 
-/* Luxury Left & Right Arrow Buttons */
-.category-slider-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #FFFFFF;
-  border: 1.5px solid #D4AF37;
-  color: #1A1105;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(212, 175, 55, 0.25);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  outline: none;
-  padding: 0;
-}
-
-.category-slider-arrow:hover {
-  background: #D4AF37;
-  color: #FFFFFF;
-  transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.45);
-}
-
-.category-slider-arrow:active {
-  transform: translateY(-50%) scale(0.96);
-}
-
-.category-slider-arrow.prev {
-  left: 0;
-}
-
-.category-slider-arrow.next {
-  right: 0;
-}
-
 /* Shimmer placeholder */
 .shimmer-tile {
   background: linear-gradient(
@@ -254,19 +213,11 @@
     padding: 1.5rem 0;
   }
   .categories-slider-wrapper {
-    padding: 0 38px;
+    padding: 0 16px;
   }
   .categories-slider-track {
     gap: 12px;
     padding: 8px 4px;
-  }
-  .category-slider-arrow {
-    width: 36px;
-    height: 36px;
-  }
-  .category-slider-arrow svg {
-    width: 18px;
-    height: 18px;
   }
   .category-tile-card {
     width: 155px;
@@ -284,18 +235,10 @@
 
 @media (max-width: 480px) {
   .categories-slider-wrapper {
-    padding: 0 32px;
+    padding: 0 12px;
   }
   .categories-slider-track {
     gap: 10px;
-  }
-  .category-slider-arrow {
-    width: 30px;
-    height: 30px;
-  }
-  .category-slider-arrow svg {
-    width: 16px;
-    height: 16px;
   }
   .category-tile-card {
     width: 140px;
