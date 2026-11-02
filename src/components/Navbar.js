@@ -582,11 +582,24 @@ const Navbar = ({
 
                 return (
                   <div key={link.id} className="vj-drawer-item-group">
-                    <div className="vj-drawer-link-row">
+                    <div
+                      className="vj-drawer-link-row"
+                      onClick={() => {
+                        if (hasSubcats) {
+                          setMobileExpandedCat(isExpanded ? null : link.id);
+                        }
+                      }}
+                      style={hasSubcats ? { cursor: 'pointer' } : undefined}
+                    >
                       <button
                         type="button"
                         className={`vj-drawer-link ${activeCategory === link.id ? 'active' : ''}`}
-                        onClick={() => {
+                        onClick={(e) => {
+                          if (hasSubcats) {
+                            e.stopPropagation();
+                            setMobileExpandedCat(isExpanded ? null : link.id);
+                            return;
+                          }
                           setActiveCategory(link.id);
                           setIsMobileMenuOpen(false);
                           if (link.id === 'all') {
