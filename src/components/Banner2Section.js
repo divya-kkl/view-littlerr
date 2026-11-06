@@ -6,7 +6,7 @@ const DEFAULT_BANNER2_SLIDES = [
   {
     id: 'default-b2-1',
     image: 'https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?auto=format&fit=crop&w=1600&q=80',
-    title: 'Divine Temple Jewellery Collection',
+    title: 'Divine Temple little_rr Collection',
     subtitle: 'Handcrafted Heritage • 916 BIS Hallmarked Purity'
   }
 ];

@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 export const DEFAULT_RATE_TYPES = [
   { id: '1', dbId: 1, name: '22K Gold', purity: '91.6%', description: '916 Hallmark Standard Gold', status: 'ACTIVE' },
   { id: '2', dbId: 2, name: '24K Gold', purity: '99.9%', description: 'Pure 24 Karat Gold Bar / Coin', status: 'ACTIVE' },
-  { id: '3', dbId: 3, name: '18K Gold', purity: '75.0%', description: '18 Karat Diamond Jewellery Gold', status: 'ACTIVE' },
+  { id: '3', dbId: 3, name: '18K Gold', purity: '75.0%', description: '18 Karat Diamond little_rr Gold', status: 'ACTIVE' },
   { id: '4', dbId: 4, name: 'Silver (925)', purity: '92.5%', description: 'Sterling Silver 925', status: 'ACTIVE' }
 ];
 
@@ -13,14 +13,14 @@ const getLocalRateTypes = () => {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch (e) {}
+  } catch (e) { }
   return DEFAULT_RATE_TYPES;
 };
 
 const setLocalRateTypes = (list) => {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
-  } catch (e) {}
+  } catch (e) { }
 };
 
 const normalizeRateType = (row) => ({

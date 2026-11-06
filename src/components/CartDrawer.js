@@ -1,22 +1,118 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import './CartDrawer.css';
+import { supabase } from '../supabaseClient';
+import { createOrderInSupabase } from '../services/orderService';
 
-const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem }) => {
-  const [isCheckoutStep, setIsCheckoutStep] = useState(false);
+const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem, initialCheckout = false, isLoading = false }) => {
+  const [isCheckoutStep, setIsCheckoutStep] = useState(initialCheckout);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [placedOrderNumber, setPlacedOrderNumber] = useState('');
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [isDrawerLoading, setIsDrawerLoading] = useState(false);
+
+  const [checkoutForm, setCheckoutForm] = useState({
+    customer_name: '',
+    customer_phone: '',
+    customer_email: '',
+    street_address: '',
+    city: '',
+    state: 'Tamil Nadu',
+    pincode: '',
+    payment_method: 'Cash on Delivery',
+    order_notes: ''
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsCheckoutStep(Boolean(initialCheckout));
+      document.body.style.overflow = 'hidden';
+      setIsDrawerLoading(true);
+      const timer = setTimeout(() => {
+        setIsDrawerLoading(false);
+      }, 400);
+
+      // Attempt to prefill user details if logged in
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          const u = session.user;
+          setCheckoutForm(prev => ({
+            ...prev,
+            customer_name: u.user_metadata?.full_name || prev.customer_name,
+            customer_email: u.email || prev.customer_email,
+            customer_phone: u.user_metadata?.phone || prev.customer_phone
+          }));
+        }
+      });
+
+      return () => {
+        clearTimeout(timer);
+        document.body.style.overflow = '';
+      };
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [isOpen, initialCheckout]);
 
   if (!isOpen) return null;
 
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const gstAmount = Math.round(subtotal * 0.03); // 3% GST
-  const grandTotal = subtotal + gstAmount;
+  const grandTotal = subtotal;
 
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
-    setOrderSuccess(true);
+    if (!cart || cart.length === 0) {
+      alert('Your cart is empty.');
+      return;
+    }
+
+    setIsSubmittingOrder(true);
+    try {
+      const orderPayload = {
+        customer_name: checkoutForm.customer_name,
+        customer_phone: checkoutForm.customer_phone,
+        customer_email: checkoutForm.customer_email,
+        street_address: checkoutForm.street_address,
+        city: checkoutForm.city,
+        state: checkoutForm.state,
+        country: 'India',
+        pincode: checkoutForm.pincode,
+        payment_method: checkoutForm.payment_method,
+        order_notes: checkoutForm.order_notes,
+        subtotal: grandTotal,
+        delivery_charge: 0,
+        total_amount: grandTotal,
+        items: cart.map(item => ({
+          id: item.id || item.product_id,
+          product_id: item.product_id || item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          size: item.size || null,
+          color: item.color || null,
+          image: item.image || '',
+          weight: item.weight || null,
+          purity: item.purity || null
+        }))
+      };
+
+      const res = await createOrderInSupabase(orderPayload);
+      if (res.success && res.order) {
+        setPlacedOrderNumber(res.order.order_number);
+        setOrderSuccess(true);
+        window.dispatchEvent(new Event('orderPlaced'));
+      } else {
+        alert('Failed to place order: ' + (res.error || 'Please try again.'));
+      }
+    } catch (err) {
+      console.error('Order placement error:', err);
+      alert('Error placing order: ' + err.message);
+    } finally {
+      setIsSubmittingOrder(false);
+    }
   };
 
-  return (
+  return ReactDOM.createPortal(
     <div className="drawer-overlay" onClick={onClose}>
       <div className="drawer-container animate-slide-in" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-header">
@@ -34,14 +130,56 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem }) =
         {orderSuccess ? (
           <div className="order-success-screen">
             <div className="success-icon-badge">✓</div>
-            <h2>Order Confirmed!</h2>
-            <p className="order-id">Order ID: #GOD-{Math.floor(100000 + Math.random() * 900000)}</p>
+            <h2>Order Placed Successfully!</h2>
+            <p className="order-id">Order Number: <strong>{placedOrderNumber}</strong></p>
             <p className="success-msg">
-              Thank you for choosing Sri vinayaga Moulding. Your 100% BIS Hallmarked jewellery is packed with transit insurance and will be delivered shortly.
+              Thank you for ordering with Sri Vinayaga Moulding! Your 100% BIS Hallmarked little_rr order is confirmed and will be processed right away.
             </p>
-            <button className="btn-gold" onClick={() => { setOrderSuccess(false); setIsCheckoutStep(false); onClose(); }}>
-              CONTINUE SHOPPING
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginTop: '14px' }}>
+              <button
+                className="btn-gold"
+                onClick={() => {
+                  setOrderSuccess(false);
+                  setIsCheckoutStep(false);
+                  onClose();
+                  window.location.href = '/account';
+                }}
+              >
+                📦 VIEW ORDER IN MY ACCOUNT
+              </button>
+              <button
+                type="button"
+                className="btn-outline-gold"
+                onClick={() => {
+                  setOrderSuccess(false);
+                  setIsCheckoutStep(false);
+                  onClose();
+                }}
+              >
+                CONTINUE SHOPPING
+              </button>
+            </div>
+          </div>
+        ) : (isLoading || isDrawerLoading) ? (
+          <div className="cart-shimmer-container">
+            <div className="cart-shimmer-list">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="cart-item-card cart-item-shimmer-card">
+                  <div className="cart-shimmer-thumb cart-shimmer-wave"></div>
+                  <div className="cart-shimmer-info">
+                    <div className="cart-shimmer-line line-purity cart-shimmer-wave"></div>
+                    <div className="cart-shimmer-line line-title cart-shimmer-wave"></div>
+                    <div className="cart-shimmer-line line-weight cart-shimmer-wave"></div>
+                    <div className="cart-shimmer-line line-price cart-shimmer-wave"></div>
+                    <div className="cart-shimmer-line line-btn cart-shimmer-wave"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="drawer-footer cart-shimmer-footer">
+              <div className="cart-shimmer-line line-total cart-shimmer-wave"></div>
+              <div className="cart-shimmer-line line-checkout-btn cart-shimmer-wave"></div>
+            </div>
           </div>
         ) : isCheckoutStep ? (
           <form className="checkout-form-container" onSubmit={handlePlaceOrder}>
@@ -49,42 +187,115 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem }) =
 
             <div className="form-group">
               <label>Full Name *</label>
-              <input type="text" placeholder="e.g. Ananya Sundaram" required />
+              <input
+                type="text"
+                placeholder="e.g. Ananya Sundaram"
+                value={checkoutForm.customer_name}
+                onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_name: e.target.value })}
+                required
+              />
             </div>
 
             <div className="form-row">
               <div className="form-group">
                 <label>Phone Number *</label>
-                <input type="tel" placeholder="+91 98765 43210" required />
+                <input
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  value={checkoutForm.customer_phone}
+                  onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_phone: e.target.value })}
+                  required
+                />
               </div>
               <div className="form-group">
-                <label>Pincode *</label>
-                <input type="text" placeholder="600001" required />
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  placeholder="customer@gmail.com"
+                  value={checkoutForm.customer_email}
+                  onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_email: e.target.value })}
+                />
               </div>
             </div>
 
             <div className="form-group">
-              <label>Delivery Address *</label>
-              <textarea placeholder="Door No, Street, Landmark, City..." rows="3" required></textarea>
+              <label>Door No, Street & Landmark *</label>
+              <textarea
+                placeholder="Door No, Street, Landmark..."
+                rows="2"
+                value={checkoutForm.street_address}
+                onChange={(e) => setCheckoutForm({ ...checkoutForm, street_address: e.target.value })}
+                required
+              ></textarea>
             </div>
 
-            <div className="form-section-title" style={{ marginTop: '1.5rem' }}>Select Payment Method</div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>City / Town *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Coimbatore"
+                  value={checkoutForm.city}
+                  onChange={(e) => setCheckoutForm({ ...checkoutForm, city: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Pincode *</label>
+                <input
+                  type="text"
+                  placeholder="641001"
+                  value={checkoutForm.pincode}
+                  onChange={(e) => setCheckoutForm({ ...checkoutForm, pincode: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-section-title" style={{ marginTop: '1.25rem' }}>Select Payment Method</div>
             <div className="payment-options-grid">
               <label className="payment-radio-card">
-                <input type="radio" name="payment" defaultChecked />
-                <span>💳 Credit / Debit Card</span>
+                <input
+                  type="radio"
+                  name="payment"
+                  value="Cash on Delivery"
+                  checked={checkoutForm.payment_method === 'Cash on Delivery'}
+                  onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: 'Cash on Delivery' })}
+                />
+                <span>📦 Cash on Delivery</span>
               </label>
+
               <label className="payment-radio-card">
-                <input type="radio" name="payment" />
+                <input
+                  type="radio"
+                  name="payment"
+                  value="UPI / GooglePay / PhonePe"
+                  checked={checkoutForm.payment_method === 'UPI / GooglePay / PhonePe'}
+                  onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: 'UPI / GooglePay / PhonePe' })}
+                />
                 <span>📱 UPI / GooglePay / PhonePe</span>
               </label>
+
               <label className="payment-radio-card">
-                <input type="radio" name="payment" />
-                <span>🏦 Net Banking</span>
+                <input
+                  type="radio"
+                  name="payment"
+                  value="Credit / Debit Card"
+                  checked={checkoutForm.payment_method === 'Credit / Debit Card'}
+                  onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: 'Credit / Debit Card' })}
+                />
+                <span>💳 Credit / Debit Card</span>
               </label>
+
               <label className="payment-radio-card">
-                <input type="radio" name="payment" />
-                <span>📦 Cash on Delivery (Insured)</span>
+                <input
+                  type="radio"
+                  name="payment"
+                  value="Net Banking"
+                  checked={checkoutForm.payment_method === 'Net Banking'}
+                  onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: 'Net Banking' })}
+                />
+                <span>🏦 Net Banking</span>
               </label>
             </div>
 
@@ -93,11 +304,20 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem }) =
             </div>
 
             <div className="checkout-form-buttons">
-              <button type="button" className="btn-outline-gold" onClick={() => setIsCheckoutStep(false)}>
+              <button
+                type="button"
+                className="btn-outline-gold"
+                disabled={isSubmittingOrder}
+                onClick={() => setIsCheckoutStep(false)}
+              >
                 ← Back to Cart
               </button>
-              <button type="submit" className="btn-gold">
-                CONFIRM & PAY ₹{grandTotal.toLocaleString('en-IN')}
+              <button
+                type="submit"
+                className="btn-gold"
+                disabled={isSubmittingOrder}
+              >
+                {isSubmittingOrder ? 'Placing Order...' : `PLACE ORDER ₹${grandTotal.toLocaleString('en-IN')}`}
               </button>
             </div>
           </form>
@@ -112,8 +332,8 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem }) =
                     <path d="M16 10a4 4 0 0 1-8 0" />
                   </svg>
                   <h4>Your Cart is Empty</h4>
-                  <p>Explore our exquisite gold and diamond jewellery collections.</p>
-                  <button className="btn-gold" onClick={onClose}>BROWSE JEWELLERY</button>
+                  <p>Explore our exquisite gold and diamond little_rr collections.</p>
+                  <button className="btn-gold" onClick={onClose}>BROWSE little_rr</button>
                 </div>
               ) : (
                 <div className="cart-items-list">
@@ -143,25 +363,18 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem }) =
 
             {cart.length > 0 && (
               <div className="drawer-footer">
-                <div className="cart-summary-line">
-                  <span>Subtotal:</span>
-                  <span>₹{subtotal.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="cart-summary-line">
-                  <span>GST (3%):</span>
-                  <span>₹{gstAmount.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="cart-summary-line">
-                  <span>Insured Doorstep Delivery:</span>
-                  <span className="free-shipping-tag">FREE</span>
-                </div>
-                <div className="cart-summary-divider"></div>
-                <div className="cart-grand-total">
-                  <span>Grand Total:</span>
+                <div className="cart-grand-total" style={{ marginBottom: '1.25rem' }}>
+                  <span>Total Amount:</span>
                   <span className="total-price-gold">₹{grandTotal.toLocaleString('en-IN')}</span>
                 </div>
 
-                <button className="btn-gold full-width" onClick={() => setIsCheckoutStep(true)}>
+                <button
+                  className="btn-gold full-width"
+                  onClick={() => {
+                    onClose();
+                    window.location.href = '/checkout';
+                  }}
+                >
                   PROCEED TO CHECKOUT
                 </button>
               </div>
@@ -169,7 +382,8 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem }) =
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

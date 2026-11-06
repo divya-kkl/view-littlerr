@@ -105,7 +105,6 @@
 
 .vj-luxury-navbar.vj-scrolled .vj-search-icon-btn {
   color: rgba(255, 255, 255, 0.9);
-  margin-right: 20px;
 }
 
 .vj-luxury-navbar.vj-scrolled .vj-search-icon-btn:hover {
@@ -1666,14 +1665,18 @@
   }
 
   .vj-nav-container {
-    padding: 0.65rem 1.2rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .vj-right-actions {
+    gap: 8px;
   }
 }
 
 @media (max-width: 768px) {
   .vj-nav-container {
-    padding: 0.5rem 0.85rem;
-    gap: 0.65rem;
+    padding: 0 10px;
+    gap: 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1683,55 +1686,58 @@
   .vj-mobile-menu-btn {
     flex-shrink: 0;
     padding: 4px;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #D4AF37;
+    margin: 0;
   }
 
   .vj-mobile-menu-btn svg {
-    width: 22px;
-    height: 22px;
+    width: 21px;
+    height: 21px;
   }
 
   .vj-brand-wrapper {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
     margin: 0;
     display: flex;
     align-items: center;
+    overflow: hidden;
   }
 
   .vj-brand-identity {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
     max-width: 100%;
   }
 
   .vj-shop-logo-img {
-    height: 34px;
-    max-height: 34px;
-    max-width: 36px;
+    height: 30px;
+    max-height: 30px;
+    max-width: 32px;
     border-radius: 4px;
     flex-shrink: 0;
     object-fit: contain;
   }
 
   .vj-shop-brand-name {
-    font-size: 0.92rem;
-    font-weight: 700;
+    font-size: 0.95rem;
+    font-weight: 800;
     letter-spacing: 0.4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
-    flex: 1;
+    flex-shrink: 0;
     line-height: 1;
     margin: 0;
+    color: #D4AF37;
   }
 
   .vj-right-actions {
@@ -1739,44 +1745,174 @@
     margin-left: auto;
     display: flex;
     align-items: center;
+    gap: 4px;
   }
 
+  .vj-luxury-navbar.vj-scrolled .vj-search-icon-btn {
+    margin-right: 0 !important;
+  }
+
+  .vj-cart-btn,
+  .vj-profile-btn,
   .vj-search-icon-btn {
     padding: 4px;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     flex-shrink: 0;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     color: #D4AF37;
+    border-radius: 50%;
   }
 
+  .vj-cart-btn svg,
+  .vj-profile-btn svg,
   .vj-search-icon-btn svg {
     width: 20px;
     height: 20px;
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .vj-nav-container {
-    padding: 0.4rem 0.65rem;
-    gap: 0.45rem;
+    padding: 0 8px;
+    gap: 6px;
     height: 52px;
   }
 
   .vj-brand-identity {
-    gap: 8px;
+    gap: 6px;
   }
 
   .vj-shop-logo-img {
-    height: 30px;
-    max-height: 30px;
-    max-width: 32px;
+    height: 28px;
+    max-height: 28px;
+    max-width: 30px;
   }
 
   .vj-shop-brand-name {
-    font-size: 0.82rem;
+    font-size: 0.88rem;
+    letter-spacing: 0.3px;
+  }
+
+  .vj-right-actions {
+    gap: 2px;
+  }
+
+  .vj-cart-btn,
+  .vj-profile-btn,
+  .vj-search-icon-btn {
+    width: 32px;
+    height: 32px;
+    padding: 3px;
+  }
+
+  .vj-cart-btn svg,
+  .vj-profile-btn svg,
+  .vj-search-icon-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 360px) {
+  .vj-nav-container {
+    padding: 0 6px;
+    gap: 4px;
+  }
+
+  .vj-brand-identity {
+    gap: 4px;
+  }
+
+  .vj-shop-logo-img {
+    height: 24px;
+    max-width: 26px;
+  }
+
+  .vj-shop-brand-name {
+    font-size: 0.80rem;
     letter-spacing: 0.2px;
+  }
+
+  .vj-mobile-menu-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .vj-mobile-menu-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .vj-cart-btn,
+  .vj-profile-btn,
+  .vj-search-icon-btn {
+    width: 29px;
+    height: 29px;
+    padding: 2px;
+  }
+
+  .vj-cart-btn svg,
+  .vj-profile-btn svg,
+  .vj-search-icon-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+
+/* Navbar Cart & Profile Buttons */
+.vj-cart-btn,
+.vj-profile-btn {
+  background: none;
+  border: none;
+  color: #D4AF37;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  position: relative;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.vj-cart-btn:hover,
+.vj-profile-btn:hover {
+  transform: scale(1.08);
+  background: rgba(212, 175, 55, 0.15);
+}
+
+.vj-cart-count-badge {
+  position: absolute;
+  top: 1px;
+  right: -1px;
+  background-color: #dc2626;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 9px;
+  text-align: center;
+  padding: 0 4px;
+  border: 1.5px solid #002820;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+  animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
   }
 }

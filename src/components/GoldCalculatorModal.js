@@ -47,7 +47,7 @@ const GoldCalculatorModal = ({ isOpen, onClose, rates }) => {
         </div>
 
         <div className="modal-body">
-       
+
           <div className="calc-input-group">
             <label className="calc-label">Select Metal Purity:</label>
             <div className="metal-type-grid">
@@ -84,7 +84,7 @@ const GoldCalculatorModal = ({ isOpen, onClose, rates }) => {
 
           <div className="calc-input-group">
             <div className="label-with-val">
-              <label className="calc-label">Jewellery Weight (Grams):</label>
+              <label className="calc-label">little_rr Weight (Grams):</label>
               <span className="highlight-val">{weightGrams} gms ({(weightGrams / 8).toFixed(2)} Sovereign / Pavan)</span>
             </div>
             <input

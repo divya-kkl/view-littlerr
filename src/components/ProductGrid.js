@@ -3,11 +3,11 @@ import './ProductGrid.css';
 import { supabase } from '../supabaseClient';
 import { getProductsFromSupabase } from '../services/productService';
 import { getTagsFromSupabase } from '../services/tagService';
-import { getProductWeightDisplay } from '../admin/product/ProductPriceCalculator';
 import { doesProductMatchQuery } from '../utils/tamilSearchHelper';
+import { getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
 
 const ProductGrid = ({
-  title = 'Featured Jewellery',
+  title = 'Featured Collection',
   subtitle = 'EXQUISITE CRAFTSMANSHIP',
   targetTag = null,
   sectionId = 'featured-products',
@@ -81,26 +81,27 @@ const ProductGrid = ({
       )
     : null;
 
-  // Filter products by tag and search
+  // Filter products by tag, category, and search
   const filteredProducts = dynamicProducts.filter((item) => {
     if (targetTag) {
       const targetLower = targetTag.toLowerCase().trim();
       const itemTagNameLower = (item.tagName || '').toLowerCase().trim();
       const isTagMatch =
-        (activeTargetTagObj && item.tagId === activeTargetTagObj.dbId) ||
-        (activeTargetTagObj && item.tagId === activeTargetTagObj.id) ||
-        item.tagId === targetTag ||
+        (activeTargetTagObj && String(item.tagId) === String(activeTargetTagObj.dbId)) ||
+        (activeTargetTagObj && String(item.tagId) === String(activeTargetTagObj.id)) ||
+        (activeTargetTagObj && Array.isArray(item.tags) && item.tags.map(String).includes(String(activeTargetTagObj.id))) ||
+        String(item.tagId) === String(targetTag) ||
         itemTagNameLower === targetLower ||
         itemTagNameLower.includes(targetLower) ||
         targetLower.includes(itemTagNameLower);
 
       if (!isTagMatch) return false;
-    } else {
-      if (!item.tagId && !item.tagName) return false;
     }
 
-    if (activeCategory !== 'all' && activeCategory !== 'scheme') {
-      if (item.categoryId !== activeCategory) return false;
+    if (activeCategory && activeCategory !== 'all' && activeCategory !== 'scheme') {
+      if (item.categoryId !== activeCategory && item.productCategoriesID !== activeCategory) {
+        return false;
+      }
     }
 
     if (filterTab !== 'all') {
@@ -113,8 +114,8 @@ const ProductGrid = ({
     return true;
   });
 
-  // Home page displays 4 products in the row
-  const displayedProducts = filteredProducts.slice(0, 4);
+  // Home page displays products in the row
+  const displayedProducts = filteredProducts.slice(0, 8);
 
   // Dynamic Section Title: uses live tag name from Supabase if available
   const displayTitle = activeTargetTagObj?.name || title;
@@ -167,11 +168,11 @@ const ProductGrid = ({
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="no-products-found">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gold-primary)" strokeWidth="1.5">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gold-primary, #D4AF37)" strokeWidth="1.5">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <h3>No jewellery items found for {displayTitle}.</h3>
+            <h3>No products found for {displayTitle}.</h3>
             <p>Add products with the "{displayTitle}" tag in Admin Panel to display them here.</p>
             <button className="btn-gold" onClick={() => { if (typeof onSelectCategory === 'function') onSelectCategory('all'); setFilterTab('all'); }}>
               Reset Filter
@@ -180,7 +181,7 @@ const ProductGrid = ({
         ) : (
           <div className="products-grid">
             {displayedProducts.map((product) => (
-              <div key={product.id} className="product-card">
+              <div key={product.id || product.dbId} className="product-card">
                 <div
                   className="product-img-wrapper"
                   onClick={() => {
@@ -196,22 +197,51 @@ const ProductGrid = ({
                   title={`Click to view ${product.name}`}
                 >
                   <img src={product.image} alt={product.name} loading="lazy" />
+                  {product.badge && (
+                    <span className="product-card-badge" style={{ position: 'absolute', top: '10px', left: '10px', background: '#e11d48', color: '#fff', fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
+                      {product.badge}
+                    </span>
+                  )}
                 </div>
 
                 <div className="product-info-box">
                   <h3
                     className="product-title"
                     onClick={() => { window.location.href = `/product/${encodeURIComponent(product.name.toLowerCase())}`; }}
-                    style={{ marginBottom: '8px', color: '#001a33', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
+                    style={{ marginBottom: '8px', color: '#001a33', fontSize: '1.05rem', fontWeight: 'bold', cursor: 'pointer' }}
                   >
-                    {product.name} {product.productCode && <span style={{ display: 'none' }}>#{product.productCode}</span>}
+                    {product.name}
                   </h3>
 
-                  <div className="product-weight-purity" style={{ marginBottom: '12px', color: '#003366', fontSize: '0.9rem' }}>
-                    {getProductWeightDisplay(product)} • {product.purity ? product.purity.replace(/\s*gold/i, '').trim() || '22K' : '22K'}
+                  <div className="product-price-section" style={{ marginBottom: '12px' }}>
+                    {(() => {
+                      const priceInfo = getProductPriceInfo(product, liveRates);
+                      if (priceInfo.sellingPrice > 0) {
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary-green, #003B2F)' }}>
+                              ₹{priceInfo.sellingPrice.toLocaleString('en-IN')}
+                            </span>
+                            {priceInfo.mrp > priceInfo.sellingPrice && (
+                              <span style={{ fontSize: '0.85rem', color: '#9ca3af', textDecoration: 'line-through' }}>
+                                ₹{priceInfo.mrp.toLocaleString('en-IN')}
+                              </span>
+                            )}
+                            {priceInfo.discount > 0 && (
+                              <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 'bold' }}>
+                                ({priceInfo.discount}% OFF)
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <span style={{ color: '#003B2F', fontSize: '0.9rem', fontWeight: 600 }}>
+                          {product.brand ? product.brand : 'Price on Request'}
+                        </span>
+                      );
+                    })()}
                   </div>
-
-
                 </div>
 
                 <button

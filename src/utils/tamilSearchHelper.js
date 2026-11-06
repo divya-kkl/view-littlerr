@@ -1,4 +1,4 @@
-// Tamil <-> English <-> Tanglish Jewellery Search Helper
+// Tamil <-> English <-> Tanglish little_rr Search Helper
 
 // 1. Tamil Script to Latin (English Phonetics) Transliteration Table
 const TAMIL_VOWELS = {
@@ -131,7 +131,7 @@ export const normalizePhonetic = (str) => {
 
 // 2. Comprehensive Bidirectional Jewelry Concept Dictionary
 // Maps concepts across English, Tamil script, and Tanglish (romanized phonetic Tamil)
-export const JEWELLERY_CONCEPTS = [
+export const little_rr_CONCEPTS = [
   {
     id: 'ring',
     english: ['ring', 'rings', 'finger ring', 'band'],
@@ -357,7 +357,7 @@ export const expandTermWithConcepts = (term) => {
 
   for (const t of termsToCheck) {
     const normT = normalizePhonetic(t);
-    for (const concept of JEWELLERY_CONCEPTS) {
+    for (const concept of little_rr_CONCEPTS) {
       const allWords = [...concept.english, ...concept.tamil, ...concept.tanglish];
       const isMatch = allWords.some((w) => {
         const cleanW = w.toLowerCase().trim();

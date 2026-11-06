@@ -10,28 +10,28 @@ const DEFAULT_TILES = [
     label: 'UNDER ₹5000',
     min: 0,
     max: 5000,
-    alt: 'Jewellery Under ₹5000'
+    alt: 'little_rr Under ₹5000'
   },
   {
     id: 'budget-2',
     label: '₹5000 - ₹10000',
     min: 5000,
     max: 10000,
-    alt: 'Jewellery ₹5000 - ₹10000'
+    alt: 'little_rr ₹5000 - ₹10000'
   },
   {
     id: 'budget-3',
     label: '₹10000 - ₹25000',
     min: 10000,
     max: 25000,
-    alt: 'Jewellery ₹10000 - ₹25000'
+    alt: 'little_rr ₹10000 - ₹25000'
   },
   {
     id: 'budget-4',
     label: '₹25000 - ₹50000',
     min: 25000,
     max: 50000,
-    alt: 'Jewellery ₹25000 - ₹50000'
+    alt: 'little_rr ₹25000 - ₹50000'
   }
 ];
 
@@ -113,7 +113,7 @@ const BudgetDealsSection = ({ liveRates = [] }) => {
   };
 
   const handleFindFavorites = () => {
-    // Shows all jewellery products on one page
+    // Shows all little_rr products on one page
     window.location.href = '/all-products';
   };
 
@@ -159,7 +159,7 @@ const BudgetDealsSection = ({ liveRates = [] }) => {
                   key={tile.id}
                   className="deals-tile-card"
                   onClick={() => handleCardClick(tile)}
-                  title={`Shop jewellery ${tile.label} - ${tile.productName || ''}`}
+                  title={`Shop little_rr ${tile.label} - ${tile.productName || ''}`}
                 >
                   {tile.image ? (
                     <img

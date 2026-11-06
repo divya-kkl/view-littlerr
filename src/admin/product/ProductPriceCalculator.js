@@ -25,34 +25,37 @@ export const getProductWeightDisplay = (product) => {
   return 'Weight: -';
 };
 
-export const calculateFinalPrice = (product, liveRates) => {
+export const calculateFinalPrice = (product, liveRates = []) => {
   const netWt = parseFloat(product?.netWeight) || parseFloat(product?.grossWeight) || parseFloat(product?.weight) || 0;
   if (!netWt) return { finalPrice: 0, basePrice: 0, makingCharge: 0, hallmarkCharge: 0, gstRate: 0 };
 
   const purityStr = (product.purity || '').toLowerCase().replace(/\s+/g, '');
-  const rateItem = liveRates.find(r => {
+  const rateItem = (liveRates || []).find(r => {
     const typeStr = (r.type || '').toLowerCase().replace(/\s+/g, '');
     const nameStr = (r.name || '').toLowerCase().replace(/\s+/g, '');
     return typeStr === purityStr || nameStr === purityStr || typeStr.includes(purityStr) || purityStr.includes(typeStr);
   });
   
-  const rateAmount = rateItem ? parseFloat(rateItem.amount) : 0;
-  const rateGram = rateItem ? parseFloat(rateItem.gram || 1) : 1;
+  let rateAmount = rateItem ? parseFloat(rateItem.amount) : 0;
+  let rateGram = rateItem ? parseFloat(rateItem.gram || 1) : 1;
+  if (!rateAmount) {
+    if (purityStr.includes('24')) rateAmount = 8125;
+    else if (purityStr.includes('18')) rateAmount = 6110;
+    else if (purityStr.includes('silver')) rateAmount = 95;
+    else rateAmount = 7450;
+  }
   const ratePerGram = rateAmount / rateGram;
   
   const basePrice = netWt * ratePerGram;
   
   const mcPercent = parseFloat(product.makingChargePercent) || 0;
   const mcFlat = parseFloat(product.makingCharge) || 0;
-  
 
   let makingCharge = 0;
   if (product.mcType === 'percent' || mcPercent > 0) {
-    
     const mcVal = product.mcType ? parseFloat(product.makingCharge) || 0 : mcPercent;
     makingCharge = basePrice * (mcVal / 100);
   } else {
- 
     makingCharge = product.mcType ? (parseFloat(product.makingCharge) || 0) : mcFlat;
   }
   
@@ -68,6 +71,28 @@ export const calculateFinalPrice = (product, liveRates) => {
   const finalPrice = Math.round(subtotal + gstAmount);
   
   return { finalPrice, basePrice, makingCharge, hallmarkCharge, gstRate };
+};
+
+export const getProductPriceInfo = (product, liveRates = []) => {
+  if (!product) return { sellingPrice: 0, mrp: 0, discount: 0 };
+  let sellingPrice = 0;
+  let mrp = 0;
+  let discount = 0;
+
+  if (product.price && parseFloat(product.price) > 0) {
+    sellingPrice = parseFloat(product.price);
+    mrp = parseFloat(product.mrp) > sellingPrice ? parseFloat(product.mrp) : 0;
+    discount = parseFloat(product.discountPercentage) || (mrp > sellingPrice ? Math.round(((mrp - sellingPrice) / mrp) * 100) : 0);
+  } else {
+    const calc = calculateFinalPrice(product, liveRates);
+    if (calc && calc.finalPrice > 0) {
+      sellingPrice = calc.finalPrice;
+      mrp = parseFloat(product.mrp) > sellingPrice ? parseFloat(product.mrp) : 0;
+      discount = parseFloat(product.discountPercentage) || (mrp > sellingPrice ? Math.round(((mrp - sellingPrice) / mrp) * 100) : 0);
+    }
+  }
+
+  return { sellingPrice, mrp, discount };
 };
 
 const ProductPriceCalculator = ({ formData, liveRates }) => {

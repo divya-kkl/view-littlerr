@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Testimonials.css';
 import { supabase } from '../supabaseClient';
-import { INSTAGRAM_POSTS } from '../data/jewelleryData';
+import { INSTAGRAM_POSTS } from '../data/little_rrData';
 import { getTestimonialsFromSupabase } from '../services/testimonialService';
 
 const DEFAULT_FALLBACK_TESTIMONIALS = [
@@ -27,7 +27,7 @@ const DEFAULT_FALLBACK_TESTIMONIALS = [
     id: 'default-3',
     name: 'Kavitha S.',
     location: 'Coimbatore',
-    review: 'Authentic 916 BIS Hallmarked jewellery. The temple necklace craftsmanship is absolutely stunning and divine!',
+    review: 'Authentic 916 BIS Hallmarked little_rr. The temple necklace craftsmanship is absolutely stunning and divine!',
     rating: 5,
     image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80',
     verifiedBuyer: true
@@ -120,80 +120,80 @@ const Testimonials = ({ shopName = 'Sri vinayaga Moulding', isLoadingSettings })
 
           {/* Professional 3-Container Grid */}
           <div className="testimonials-grid">
-          {isLoadingTestimonials ? (
-            Array.from({ length: 3 }).map((_, idx) => (
-              <div key={`shimmer-t-${idx}`} className="testimonial-card">
-                <div className="testi-shimmer" style={{ width: '80px', height: '16px', marginBottom: '15px', borderRadius: '4px' }}></div>
-                <div className="testi-shimmer" style={{ width: '100%', height: '14px', marginBottom: '8px', borderRadius: '4px' }}></div>
-                <div className="testi-shimmer" style={{ width: '80%', height: '14px', marginBottom: '20px', borderRadius: '4px' }}></div>
+            {isLoadingTestimonials ? (
+              Array.from({ length: 3 }).map((_, idx) => (
+                <div key={`shimmer-t-${idx}`} className="testimonial-card">
+                  <div className="testi-shimmer" style={{ width: '80px', height: '16px', marginBottom: '15px', borderRadius: '4px' }}></div>
+                  <div className="testi-shimmer" style={{ width: '100%', height: '14px', marginBottom: '8px', borderRadius: '4px' }}></div>
+                  <div className="testi-shimmer" style={{ width: '80%', height: '14px', marginBottom: '20px', borderRadius: '4px' }}></div>
 
-                <div className="customer-profile-row" style={{ marginTop: 'auto' }}>
-                  <div className="testi-shimmer" style={{ width: '48px', height: '48px', borderRadius: '50%' }}></div>
-                  <div className="customer-meta" style={{ flex: 1 }}>
-                    <div className="testi-shimmer" style={{ width: '100px', height: '14px', marginBottom: '6px', borderRadius: '4px' }}></div>
-                    <div className="testi-shimmer" style={{ width: '140px', height: '12px', borderRadius: '4px' }}></div>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            displayedList.map((t, idx) => (
-              <div
-                key={t.id}
-                className={`testimonial-card ${idx === currentIndex ? 'mobile-active' : 'mobile-hidden'}`}
-              >
-                {/* Card Header with Stars and Elegant Quote Mark */}
-                <div className="testi-card-header">
-                  <div className="stars-row" title={`${t.rating || 5} out of 5 stars`}>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <svg
-                        key={i}
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill={i < (t.rating || 5) ? '#D4AF37' : '#E0E0E0'}
-                        stroke={i < (t.rating || 5) ? '#D4AF37' : '#E0E0E0'}
-                        strokeWidth="1"
-                      >
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                    ))}
-                  </div>
-
-                  <svg className="quote-mark-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                  </svg>
-                </div>
-
-                <p className="testimonial-quote">“{t.review}”</p>
-
-                {/* Customer Profile Row */}
-                <div className="customer-profile-row">
-                  {t.image ? (
-                    <img src={t.image} alt={t.name} className="customer-avatar" />
-                  ) : (
-                    <div className="customer-avatar customer-avatar-initials">
-                      {t.name ? t.name.charAt(0).toUpperCase() : 'C'}
-                    </div>
-                  )}
-                  <div className="customer-meta">
-                    <h4 className="customer-name">{t.name}</h4>
-                    <div className="customer-sub-meta">
-                      {t.location && <span className="customer-location">📍 {t.location}</span>}
-                      {t.verifiedBuyer !== false && (
-                        <span className="verified-badge">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Verified Buyer
-                        </span>
-                      )}
+                  <div className="customer-profile-row" style={{ marginTop: 'auto' }}>
+                    <div className="testi-shimmer" style={{ width: '48px', height: '48px', borderRadius: '50%' }}></div>
+                    <div className="customer-meta" style={{ flex: 1 }}>
+                      <div className="testi-shimmer" style={{ width: '100px', height: '14px', marginBottom: '6px', borderRadius: '4px' }}></div>
+                      <div className="testi-shimmer" style={{ width: '140px', height: '12px', borderRadius: '4px' }}></div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            ) : (
+              displayedList.map((t, idx) => (
+                <div
+                  key={t.id}
+                  className={`testimonial-card ${idx === currentIndex ? 'mobile-active' : 'mobile-hidden'}`}
+                >
+                  {/* Card Header with Stars and Elegant Quote Mark */}
+                  <div className="testi-card-header">
+                    <div className="stars-row" title={`${t.rating || 5} out of 5 stars`}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <svg
+                          key={i}
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill={i < (t.rating || 5) ? '#D4AF37' : '#E0E0E0'}
+                          stroke={i < (t.rating || 5) ? '#D4AF37' : '#E0E0E0'}
+                          strokeWidth="1"
+                        >
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                      ))}
+                    </div>
+
+                    <svg className="quote-mark-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                    </svg>
+                  </div>
+
+                  <p className="testimonial-quote">“{t.review}”</p>
+
+                  {/* Customer Profile Row */}
+                  <div className="customer-profile-row">
+                    {t.image ? (
+                      <img src={t.image} alt={t.name} className="customer-avatar" />
+                    ) : (
+                      <div className="customer-avatar customer-avatar-initials">
+                        {t.name ? t.name.charAt(0).toUpperCase() : 'C'}
+                      </div>
+                    )}
+                    <div className="customer-meta">
+                      <h4 className="customer-name">{t.name}</h4>
+                      <div className="customer-sub-meta">
+                        {t.location && <span className="customer-location">📍 {t.location}</span>}
+                        {t.verifiedBuyer !== false && (
+                          <span className="verified-badge">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Verified Buyer
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           {displayedList.length > 1 && (
@@ -252,7 +252,7 @@ const Testimonials = ({ shopName = 'Sri vinayaga Moulding', isLoadingSettings })
                 >
                   <img
                     src={post.image}
-                    alt="Jewellery Instagram Showcase"
+                    alt="little_rr Instagram Showcase"
                     loading="lazy"
                     onError={(e) => {
                       e.target.onerror = null;

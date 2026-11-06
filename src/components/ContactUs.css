@@ -1,6 +1,6 @@
 /* ==========================================================
-   SRI VINAYAGA MOULDING - LUXURY JEWELLERY CONTACT US PAGE
-   High-end Editorial Jewellery Theme (Emerald Green & Gold)
+   SRI VINAYAGA MOULDING - LUXURY little_rr CONTACT US PAGE
+   High-end Editorial little_rr Theme (Emerald Green & Gold)
    ========================================================== */
 
 .vj-contact-page {
@@ -251,7 +251,7 @@
 }
 
 /* ══════════════════════════════════════════
-   RIGHT COLUMN: Professional Jewellery Form
+   RIGHT COLUMN: Professional little_rr Form
 ══════════════════════════════════════════ */
 .vj-contact-form-card {
     background: #FFFFFF;
@@ -538,24 +538,20 @@
 }
 
 .vj-shimmer-line {
-    background: linear-gradient(
-        90deg,
-        rgba(0, 59, 47, 0.08) 0%,
-        rgba(212, 175, 55, 0.22) 50%,
-        rgba(0, 59, 47, 0.08) 100%
-    );
+    background: linear-gradient(90deg,
+            rgba(0, 59, 47, 0.08) 0%,
+            rgba(212, 175, 55, 0.22) 50%,
+            rgba(0, 59, 47, 0.08) 100%);
     background-size: 200% 100%;
     animation: vjContactShimmer 1.5s infinite ease-in-out;
     border-radius: 6px;
 }
 
 .vj-shimmer-hero .vj-shimmer-line {
-    background: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0.08) 0%,
-        rgba(212, 175, 55, 0.28) 50%,
-        rgba(255, 255, 255, 0.08) 100%
-    );
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.08) 0%,
+            rgba(212, 175, 55, 0.28) 50%,
+            rgba(255, 255, 255, 0.08) 100%);
     background-size: 200% 100%;
     animation: vjContactShimmer 1.5s infinite ease-in-out;
 }
@@ -565,12 +561,10 @@
     height: 28px;
     border-radius: 30px;
     margin-bottom: 1.2rem;
-    background: linear-gradient(
-        90deg,
-        rgba(212, 175, 55, 0.15) 0%,
-        rgba(212, 175, 55, 0.35) 50%,
-        rgba(212, 175, 55, 0.15) 100%
-    );
+    background: linear-gradient(90deg,
+            rgba(212, 175, 55, 0.15) 0%,
+            rgba(212, 175, 55, 0.35) 50%,
+            rgba(212, 175, 55, 0.15) 100%);
     background-size: 200% 100%;
     animation: vjContactShimmer 1.5s infinite ease-in-out;
 }
@@ -600,12 +594,10 @@
     width: 50px;
     height: 50px;
     border-radius: 12px;
-    background: linear-gradient(
-        90deg,
-        rgba(0, 59, 47, 0.08) 0%,
-        rgba(212, 175, 55, 0.25) 50%,
-        rgba(0, 59, 47, 0.08) 100%
-    );
+    background: linear-gradient(90deg,
+            rgba(0, 59, 47, 0.08) 0%,
+            rgba(212, 175, 55, 0.25) 50%,
+            rgba(0, 59, 47, 0.08) 100%);
     background-size: 200% 100%;
     animation: vjContactShimmer 1.5s infinite ease-in-out;
     flex-shrink: 0;
@@ -620,6 +612,7 @@
     0% {
         background-position: 200% 0;
     }
+
     100% {
         background-position: -200% 0;
     }

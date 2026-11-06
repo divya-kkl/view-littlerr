@@ -1,73 +1,157 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
+import { getTopBannersFromSupabase } from '../services/topBannerService';
 import RateHistoryModal from './RateHistoryModal';
 import './GoldRateTicker.css';
 
 const GoldRateTicker = ({ rates = [], onOpenCalculator, siteSettings, isLoadingSettings, isLoadingRates, lastRateUpdate }) => {
-
-  const formatUpdateTime = (isoStr) => {
-    if (!isoStr) return null;
-    const d = new Date(isoStr);
-    return d.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short', hour12: true });
-  };
-
-  const updatedLabel = formatUpdateTime(lastRateUpdate);
+  const [topBanners, setTopBanners] = useState([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [shimmering, setShimmering] = useState(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  const fetchBanners = async () => {
+    const res = await getTopBannersFromSupabase(true);
+    if (res.data) {
+      setTopBanners(res.data);
+    }
+  };
+
   useEffect(() => {
+    fetchBanners();
+
+    // Supabase Realtime Listener on top_banners
+    const channel = supabase
+      .channel('top_banners_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'top_banners' },
+        () => {
+          fetchBanners();
+        }
+      )
+      .subscribe();
+
     const timer = setTimeout(() => {
       setShimmering(false);
-    }, 1500);
-    return () => clearTimeout(timer);
+    }, 1200);
+
+    return () => {
+      clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  const isRatesLoading = shimmering || (isLoadingRates && rates.length === 0);
+  // Cycle through banners if there are multiple active
+  useEffect(() => {
+    if (topBanners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % topBanners.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [topBanners.length]);
+
+  const activeBanner = topBanners[currentBannerIndex] || topBanners[0];
+  const isRatesLoading = shimmering && topBanners.length === 0;
 
   return (
     <div className="gold-ticker-wrapper">
       <div className="container ticker-container">
-        <div className="ticker-left">
+        <div className="ticker-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {isRatesLoading ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
               <span
                 className="ticker-badge-shimmer"
                 style={{
                   display: 'inline-block',
-                  width: '112px',
+                  width: '90px',
                   height: '22px',
                   borderRadius: '4px',
                 }}
               />
-              <div className="ticker-rates" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  className="ticker-item-shimmer"
-                  style={{ display: 'inline-block', width: '130px', height: '14px', borderRadius: '4px' }}
-                />
-                <span className="divider" style={{ opacity: 0.3 }}>|</span>
-                <span
-                  className="ticker-item-shimmer"
-                  style={{ display: 'inline-block', width: '130px', height: '14px', borderRadius: '4px' }}
-                />
+              <span
+                className="ticker-item-shimmer"
+                style={{ display: 'inline-block', width: '220px', height: '14px', borderRadius: '4px' }}
+              />
+            </div>
+          ) : topBanners.length > 0 ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {activeBanner.badgeText && (
+                <span className="live-badge" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <span className="pulse-dot"></span> {activeBanner.badgeText}
+                </span>
+              )}
+
+              <div className="ticker-rates-content" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                {activeBanner.link ? (
+                  <a
+                    href={activeBanner.link}
+                    style={{
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'opacity 0.2s'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                  >
+                    <span className="rate-item" style={{ cursor: 'pointer', fontWeight: 500 }}>
+                      {activeBanner.content}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>→</span>
+                  </a>
+                ) : (
+                  <span className="rate-item" style={{ fontWeight: 500 }}>
+                    {activeBanner.content}
+                  </span>
+                )}
               </div>
+
+              {/* Indicator dots if more than 1 banner */}
+              {topBanners.length > 1 && (
+                <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', marginLeft: '6px' }}>
+                  {topBanners.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setCurrentBannerIndex(idx)}
+                      style={{
+                        width: idx === currentBannerIndex ? '14px' : '6px',
+                        height: '6px',
+                        borderRadius: '3px',
+                        border: 'none',
+                        padding: 0,
+                        background: idx === currentBannerIndex ? '#D4AF37' : 'rgba(255, 255, 255, 0.35)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                      title={`Go to announcement ${idx + 1}`}
+                      aria-label={`Announcement ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <>
-              <button
-                type="button"
-                className="live-badge live-badge-clickable"
-                onClick={() => setIsHistoryOpen(true)}
-                title="Click to view 7-Day Gold & Silver Rate History"
-                aria-label="View 7-Day Gold & Silver Rate History"
-              >
-                <span className="pulse-dot"></span> RATE HISTORY
-                <svg className="live-badge-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              <div className="ticker-rates-wrapper">
-                <div className="ticker-rates-content">
-                  {rates.length > 0 ? (
-                    <>
+              {rates.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="live-badge live-badge-clickable"
+                    onClick={() => setIsHistoryOpen(true)}
+                    title="Click to view 7-Day Gold & Silver Rate History"
+                    aria-label="View 7-Day Gold & Silver Rate History"
+                  >
+                    <span className="pulse-dot"></span> RATE HISTORY
+                    <svg className="live-badge-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  <div className="ticker-rates-wrapper">
+                    <div className="ticker-rates-content">
                       <div className="ticker-rates-track">
                         {rates.map((rate, idx) => (
                           <React.Fragment key={`orig-${rate.id || idx}`}>
@@ -78,30 +162,19 @@ const GoldRateTicker = ({ rates = [], onOpenCalculator, siteSettings, isLoadingS
                           </React.Fragment>
                         ))}
                       </div>
-                      <div className="ticker-rates-track ticker-rates-track-clone" aria-hidden="true">
-                        {rates.map((rate, idx) => (
-                          <React.Fragment key={`clone-${rate.id || idx}`}>
-                            <span className="rate-item">
-                              <strong>{rate.type}:</strong> ₹{rate.amount ? rate.amount.toLocaleString('en-IN') : 'N/A'}
-                            </span>
-                            <span className="divider">|</span>
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <span className="rate-item">Live rates not updated yet</span>
-                  )}
-                </div>
-              </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <span className="rate-item" style={{ opacity: 0.9 }}>
+                  Welcome to {siteSettings?.shop_name || 'Sri Vinayaga Moulding'}
+                </span>
+              )}
             </>
           )}
         </div>
 
         <div className="ticker-right">
-          {updatedLabel && (
-            <span className="ticker-last-updated">Last updated: {updatedLabel}</span>
-          )}
           <a
             href={siteSettings?.store_phone ? `tel:${siteSettings.store_phone}` : '#'}
             className="phone-contact"

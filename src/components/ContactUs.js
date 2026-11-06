@@ -11,7 +11,7 @@ const ContactUs = ({ siteSettings, isLoadingSettings }) => {
         name: '',
         phone: '',
         email: '',
-        inquiryType: 'Bridal Jewellery Sets',
+        inquiryType: 'Bridal little_rr Sets',
         message: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,7 +63,7 @@ const ContactUs = ({ siteSettings, isLoadingSettings }) => {
                 name: '',
                 phone: '',
                 email: '',
-                inquiryType: 'Bridal Jewellery Sets',
+                inquiryType: 'Bridal little_rr Sets',
                 message: ''
             });
             timeoutRef.current = setTimeout(() => {
@@ -160,7 +160,7 @@ const ContactUs = ({ siteSettings, isLoadingSettings }) => {
                     Connect With <span className="vj-gold-text">{shopName}</span>
                 </h1>
                 <div className="vj-contact-hero-divider" />
-                
+
             </section>
 
             <div className="vj-contact-main-wrapper">
@@ -199,7 +199,7 @@ const ContactUs = ({ siteSettings, isLoadingSettings }) => {
                             </div>
                         </div>
                         <div className="vj-contact-actions-row">
-                           
+
                             <a href={callUrl} className="vj-action-btn call">
                                 <IoCall size={18} />
                                 <span>Call Directly</span>
@@ -213,7 +213,7 @@ const ContactUs = ({ siteSettings, isLoadingSettings }) => {
                         <div className="vj-form-header">
                             <h2 className="vj-form-title">Send An Inquiry</h2>
                             <p className="vj-form-subtitle">
-                                Please leave your details below. Our jewellery specialists will get in touch with you shortly.
+                                Please leave your details below. Our little_rr specialists will get in touch with you shortly.
                             </p>
                         </div>
 
@@ -231,7 +231,7 @@ const ContactUs = ({ siteSettings, isLoadingSettings }) => {
                             onSubmit={handleSubmit}
                             className="vj-contact-form"
                         >
-                            <input type="hidden" name="_subject" value={`New Jewellery Inquiry from ${formData.name || 'Customer'} - ${shopName}`} />
+                            <input type="hidden" name="_subject" value={`New little_rr Inquiry from ${formData.name || 'Customer'} - ${shopName}`} />
                             <input type="hidden" name="_template" value="table" />
                             <input type="hidden" name="_captcha" value="false" />
                             <input type="text" name="_honey" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
@@ -276,7 +276,7 @@ const ContactUs = ({ siteSettings, isLoadingSettings }) => {
                                 </div>
                             </div>
                             <div className="vj-form-group">
-                                <label htmlFor="form-message">Jewellery Specifications &amp; Inquiry Details <span className="req">*</span></label>
+                                <label htmlFor="form-message">little_rr Specifications &amp; Inquiry Details <span className="req">*</span></label>
                                 <textarea
                                     id="form-message"
                                     name="message"
@@ -321,7 +321,7 @@ const ContactUs = ({ siteSettings, isLoadingSettings }) => {
                                 📍 {shopName} • {storeAddress}
                             </p>
                         </div>
-                     
+
                     </div>
 
                     <div className="vj-map-iframe-box">

@@ -5,6 +5,15 @@ import './ProductDetailsPage.css';
 import { getProductsFromSupabase } from '../services/productService';
 import { calculateFinalPrice } from '../admin/product/ProductPriceCalculator';
 import { setCurrentProduct, setActiveImage as setReduxActiveImage } from '../redux/slices/productsSlice';
+import CartDrawer from './CartDrawer';
+import {
+  addToCartInSupabase,
+  fetchCartItemsFromSupabase,
+  updateCartItemQuantityInSupabase,
+  removeCartItemFromSupabase
+} from '../services/cartService';
+import { parseSizeVariants } from '../utils/sizeStockHelper';
+import { supabase } from '../supabaseClient';
 
 const POLICY_PILLS = [
   { id: 'best-price', label: 'Best Price' },
@@ -18,7 +27,7 @@ const POLICY_PILLS = [
 
 const POLICY_TEXTS = {
   'best-quality':
-    'A one-stop-shop for the most supreme ornaments and articles, backed by the quality revolution. Having pioneered the quality revolution by educating customers about various Government-certified quality aspects, Sri vinayaga Moulding is one of the first institutions to offer only BIS 916-hallmarked jewellery in the market. Home to sophisticated machinery that accurately determines the quality and carat value of jewellery, the measurements obtained at Sri vinayaga Moulding are scientific and tamper proof, thereby giving the customer an assurance with regards to the quality of jewellery offered.',
+    'A one-stop-shop for the most supreme ornaments and articles, backed by the quality revolution. Having pioneered the quality revolution by educating customers about various Government-certified quality aspects, Sri vinayaga Moulding is one of the first institutions to offer only BIS 916-hallmarked little_rr in the market. Home to sophisticated machinery that accurately determines the quality and carat value of little_rr, the measurements obtained at Sri vinayaga Moulding are scientific and tamper proof, thereby giving the customer an assurance with regards to the quality of little_rr offered.',
   'best-price':
     'We provide complete transparency in our pricing structure with daily live gold and silver rates, minimal wastage, fair making charges, and zero hidden costs on all our exquisite collections.',
   'secured-shipping':
@@ -28,9 +37,9 @@ const POLICY_TEXTS = {
   '100-refund':
     'Get a 100% money-back guarantee for returns processed within the eligible return period, credited directly back to your original payment method with complete transparency.',
   'lifetime-exchange':
-    'Enjoy our Lifetime Exchange and buyback policy across all our plain gold, diamond, and studded jewellery. Exchange anytime at prevailing bullion market rates.',
+    'Enjoy our Lifetime Exchange and buyback policy across all our plain gold, diamond, and studded little_rr. Exchange anytime at prevailing bullion market rates.',
   'certification':
-    'Every piece of gold jewellery is certified with 100% BIS 916 Hallmark, and diamonds are certified by reputed international gemological laboratories like IGI and SGL.',
+    'Every piece of gold little_rr is certified with 100% BIS 916 Hallmark, and diamonds are certified by reputed international gemological laboratories like IGI and SGL.',
 };
 
 const detectProductType = (item) => {
@@ -76,6 +85,35 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
   const [copied, setCopied] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [lightboxZoom, setLightboxZoom] = useState(false);
+
+  // E-Commerce Cart & Ordering States
+  const [quantity, setQuantity] = useState(1);
+  const [selectedSize, setSelectedSize] = useState('Free Size');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isDirectCheckout, setIsDirectCheckout] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('luxury_jewel_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Load existing cart items from Supabase cart_items table
+  useEffect(() => {
+    fetchCartItemsFromSupabase().then(res => {
+      if (res?.success && res.cart && res.cart.length > 0) {
+        setCartItems(res.cart);
+        try {
+          localStorage.setItem('luxury_jewel_cart', JSON.stringify(res.cart));
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+    });
+  }, []);
 
   // Magnifying Loupe Lens State
   const mainImgContainerRef = useRef(null);
@@ -129,6 +167,18 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
         dispatch(setCurrentProduct(foundProduct));
         setActiveImage(foundProduct.image);
         dispatch(setReduxActiveImage(foundProduct.image));
+
+        const variants = parseSizeVariants(foundProduct);
+        const firstInStock = variants.find((v) => v.stock > 0);
+        if (firstInStock) {
+          setSelectedSize(firstInStock.size);
+        } else if (variants.length > 0) {
+          setSelectedSize(variants[0].size);
+        } else if (foundProduct.hasSize) {
+          setSelectedSize('Free Size');
+        } else {
+          setSelectedSize('');
+        }
 
         // Find related products strictly matching the same item type (e.g. Bangle -> ONLY Bangles)
         const currentType = detectProductType(foundProduct);
@@ -521,9 +571,199 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
     ? product.subcategoryName.toUpperCase()
     : product.categoryName
       ? product.categoryName.toUpperCase()
-      : 'JEWELLERY';
+      : 'little_rr';
 
   const productCodeDisplay = product.productCode || `GJ ${product.name}`;
+
+  // Price resolution: check direct product.price first, otherwise weight-based calculateFinalPrice
+  const calc = calculateFinalPrice(product, ratesToUse);
+  let sellingPrice = 0;
+  let mrpPrice = 0;
+  let discountPct = 0;
+
+  if (product.price && parseFloat(product.price) > 0) {
+    sellingPrice = parseFloat(product.price);
+    mrpPrice = parseFloat(product.mrp) > sellingPrice ? parseFloat(product.mrp) : 0;
+    discountPct = parseFloat(product.discountPercentage) || (mrpPrice > sellingPrice ? Math.round(((mrpPrice - sellingPrice) / mrpPrice) * 100) : 0);
+  } else if (calc.finalPrice && calc.finalPrice > 0) {
+    sellingPrice = calc.finalPrice;
+  }
+
+  const sizeVariants = parseSizeVariants(product);
+  const currentVariant = sizeVariants.find(
+    (v) => v.size.toLowerCase() === (selectedSize || '').toLowerCase()
+  );
+  const currentSizeStock = currentVariant !== undefined
+    ? currentVariant.stock
+    : (product.stock !== undefined ? parseInt(product.stock, 10) : 10);
+  const isSelectedSizeOutOfStock = sizeVariants.length > 0
+    ? (currentSizeStock <= 0)
+    : ((product.stock !== undefined ? parseInt(product.stock, 10) : 10) <= 0);
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    if (isSelectedSizeOutOfStock) {
+      alert(`The selected size "${selectedSize}" is currently out of stock.`);
+      return;
+    }
+    const itemPrice = sellingPrice > 0 ? sellingPrice : 0;
+    const itemWeight = parseFloat(product.netWeight) || parseFloat(product.grossWeight) || parseFloat(product.weight) || 0;
+    const prodId = String(product.id || product.dbId || product.productCode || product.name || 'prod');
+    const itemImg = activeImage || product.image || (product.images && product.images[0]) || '';
+
+    const cartPayload = {
+      product_id: prodId,
+      product_name: product.name,
+      product_image: itemImg,
+      price: itemPrice,
+      quantity: quantity,
+      size: selectedSize || null,
+      color: product.color || null,
+      weight: itemWeight,
+      purity: product.purity || '22K Gold'
+    };
+
+    // Check if user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      localStorage.setItem('pending_cart_action', JSON.stringify({
+        action: 'add_to_cart',
+        productPayload: cartPayload,
+        returnUrl: window.location.pathname + window.location.search
+      }));
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      return;
+    }
+
+    const newItem = {
+      id: `${prodId}-${selectedSize || 'std'}`,
+      productId: prodId,
+      name: product.name,
+      image: itemImg,
+      price: itemPrice,
+      mrp: mrpPrice || itemPrice,
+      weight: itemWeight,
+      purity: product.purity || '22K Gold',
+      quantity: quantity,
+      size: selectedSize || ''
+    };
+
+    setCartItems(prev => {
+      const existingIndex = prev.findIndex(item => item.id === newItem.id);
+      let updated;
+      if (existingIndex > -1) {
+        updated = [...prev];
+        updated[existingIndex].quantity += quantity;
+      } else {
+        updated = [...prev, newItem];
+      }
+      try {
+        localStorage.setItem('luxury_jewel_cart', JSON.stringify(updated));
+      } catch (err) {
+        console.warn(err);
+      }
+      return updated;
+    });
+
+    setToastMsg(`${quantity} item(s) added to Cart!`);
+    setTimeout(() => setToastMsg(''), 3500);
+    setIsDirectCheckout(false);
+    // Don't auto-open drawer on "Add to Cart" - user opens details via navbar cart icon
+    setIsCartOpen(false);
+    window.dispatchEvent(new Event('cartUpdated'));
+
+    // Sync with Supabase cart_items table
+    try {
+      const res = await addToCartInSupabase(cartPayload);
+      if (res?.success && res.item?.id) {
+        setCartItems(prev => prev.map(item => item.id === newItem.id ? { ...item, dbId: res.item.id } : item));
+      }
+    } catch (err) {
+      console.error('Supabase addToCart error:', err);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (isSelectedSizeOutOfStock) {
+      alert(`The selected size "${selectedSize}" is currently out of stock.`);
+      return;
+    }
+
+    const itemPrice = sellingPrice > 0 ? sellingPrice : 0;
+    const itemWeight = parseFloat(product.netWeight) || parseFloat(product.grossWeight) || parseFloat(product.weight) || 0;
+    const prodId = String(product.id || product.dbId || product.productCode || product.name || 'prod');
+    const itemImg = activeImage || product.image || (product.images && product.images[0]) || '';
+
+    const cartPayload = {
+      product_id: prodId,
+      product_name: product.name,
+      product_image: itemImg,
+      price: itemPrice,
+      quantity: quantity,
+      size: selectedSize || null,
+      color: product.color || null,
+      weight: itemWeight,
+      purity: product.purity || '22K Gold'
+    };
+
+    // Check if user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      localStorage.setItem('pending_cart_action', JSON.stringify({
+        action: 'buy_now',
+        productPayload: cartPayload,
+        returnUrl: '/checkout'
+      }));
+      window.location.href = `/login?redirect=${encodeURIComponent('/checkout')}`;
+      return;
+    }
+
+    await handleAddToCart();
+    window.location.href = '/checkout';
+  };
+
+  const handleUpdateCartQuantity = async (id, newQty) => {
+    const targetItem = cartItems.find(item => item.id === id);
+
+    setCartItems(prev => {
+      let updated;
+      if (newQty <= 0) {
+        updated = prev.filter(item => item.id !== id);
+      } else {
+        updated = prev.map(item => item.id === id ? { ...item, quantity: newQty } : item);
+      }
+      try {
+        localStorage.setItem('luxury_jewel_cart', JSON.stringify(updated));
+      } catch (err) {
+        console.warn(err);
+      }
+      return updated;
+    });
+
+    if (targetItem?.dbId || (typeof id === 'string' && id.length > 20 && !id.includes('-'))) {
+      await updateCartItemQuantityInSupabase(targetItem?.dbId || id, newQty);
+    }
+    window.dispatchEvent(new Event('cartUpdated'));
+  };
+
+  const handleRemoveCartItem = async (id) => {
+    const targetItem = cartItems.find(item => item.id === id);
+
+    setCartItems(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      try {
+        localStorage.setItem('luxury_jewel_cart', JSON.stringify(updated));
+      } catch (err) {
+        console.warn(err);
+      }
+      return updated;
+    });
+
+    if (targetItem?.dbId || (typeof id === 'string' && id.length > 20 && !id.includes('-'))) {
+      await removeCartItemFromSupabase(targetItem?.dbId || id);
+    }
+    window.dispatchEvent(new Event('cartUpdated'));
+  };
 
   return (
     <div className="product-details-page animate-fade-in">
@@ -741,6 +981,43 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
                 <span>PRODUCT CODE NO:</span>
                 <strong>{productCodeDisplay}</strong>
               </div>
+              {product.categoryName && product.categoryName !== 'Unknown' && (
+                <div className="spec-item">
+                  <span>CATEGORY:</span>
+                  <strong>{product.categoryName}</strong>
+                </div>
+              )}
+              {product.material && (
+                <div className="spec-item">
+                  <span>MATERIAL / FABRIC:</span>
+                  <strong>{product.material}</strong>
+                </div>
+              )}
+              {product.color && (
+                <div className="spec-item">
+                  <span>COLOR:</span>
+                  <strong>{product.color}</strong>
+                </div>
+              )}
+
+              {product.sleeves && (
+                <div className="spec-item">
+                  <span>SLEEVES:</span>
+                  <strong>{product.sleeves}</strong>
+                </div>
+              )}
+              {product.neck && (
+                <div className="spec-item">
+                  <span>NECK:</span>
+                  <strong>{product.neck}</strong>
+                </div>
+              )}
+              {product.brand && (
+                <div className="spec-item">
+                  <span>BRAND:</span>
+                  <strong>{product.brand}</strong>
+                </div>
+              )}
               {product.grossWeight && parseFloat(product.grossWeight) > 0 && (
                 <div className="spec-item">
                   <span>GROSS WEIGHT:</span>
@@ -767,8 +1044,169 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
               )}
             </div>
 
+            {/* 1. Pricing Section */}
+            <div className="pd-price-container">
+              {sellingPrice > 0 ? (
+                <>
+                  <div className="pd-price-row">
+                    <span className="pd-price-val">₹{sellingPrice.toLocaleString('en-IN')}</span>
+                    {mrpPrice > sellingPrice && (
+                      <span className="pd-mrp-val">₹{mrpPrice.toLocaleString('en-IN')}</span>
+                    )}
+                    {discountPct > 0 && (
+                      <span className="pd-discount-pill">{discountPct}% OFF</span>
+                    )}
+                  </div>
+                  <div className="pd-tax-inclusive-tag">
+                    ✓ Price inclusive of all taxes • Free Insured Delivery across India
+                  </div>
+                </>
+              ) : (
+                <div className="pd-price-inquiry-box">
+                  <span className="pd-price-inquiry-text">⭐ Pure BIS 916 Hallmarked Collection</span>
+                  <div className="pd-tax-inclusive-tag">Contact us for real-time gold bullion pricing</div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Size Selector (Dynamic Stock-based from Supabase) */}
+            {sizeVariants.length > 0 && (
+              <div className="pd-attribute-box">
+                <div className="pd-attr-header">
+                  <span className="pd-attr-title">Available Sizes:</span>
+                  <div className="pd-size-stock-info">
+                    <span className="pd-attr-current">{selectedSize}</span>
+                    {isSelectedSizeOutOfStock ? (
+                      <span className="pd-stock-pill out">❌ Out of Stock</span>
+                    ) : (
+                      <span className="pd-stock-pill in">✓ In Stock</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pd-size-pill-group">
+                  {sizeVariants.map((v) => {
+                    const isOut = parseInt(v.stock, 10) <= 0;
+                    const isSelected = (selectedSize || '').toLowerCase() === v.size.toLowerCase();
+                    return (
+                      <button
+                        key={v.size}
+                        type="button"
+                        className={`pd-size-btn ${isSelected ? 'active' : ''} ${isOut ? 'out-of-stock' : ''}`}
+                        onClick={() => setSelectedSize(v.size)}
+                        title={isOut ? `${v.size} - Out of Stock` : `${v.size} - In Stock`}
+                      >
+                        <span className="pd-size-text">{v.size}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Quantity Selector */}
+            <div className="pd-quantity-row">
+              <span className="pd-quantity-label">Quantity:</span>
+              <div className="pd-quantity-picker">
+                <button
+                  type="button"
+                  className="pd-qty-btn minus"
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  disabled={quantity <= 1 || isSelectedSizeOutOfStock}
+                  aria-label="Decrease quantity"
+                >
+                  −
+                </button>
+                <span className="pd-qty-count">{quantity}</span>
+                <button
+                  type="button"
+                  className="pd-qty-btn plus"
+                  onClick={() => setQuantity(q => q + 1)}
+                  disabled={isSelectedSizeOutOfStock}
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* 4. Action Buttons: ADD TO CART & BUY NOW */}
+            <div className="pd-cart-actions-group">
+              <button
+                type="button"
+                className={`pd-btn-add-to-cart ${isSelectedSizeOutOfStock ? 'disabled-btn' : ''}`}
+                onClick={handleAddToCart}
+                disabled={isSelectedSizeOutOfStock}
+              >
+                {isSelectedSizeOutOfStock ? (
+                  <span>🚫 Out of Stock</span>
+                ) : (
+                  <>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                      <line x1="3" y1="6" x2="21" y2="6"></line>
+                      <path d="M16 10a4 4 0 0 1-8 0"></path>
+                    </svg>
+                    <span>Add to Cart</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={`pd-btn-buy-now ${isSelectedSizeOutOfStock ? 'disabled-btn' : ''}`}
+                onClick={handleBuyNow}
+                disabled={isSelectedSizeOutOfStock}
+              >
+                {isSelectedSizeOutOfStock ? (
+                  <span>Unavailable</span>
+                ) : (
+                  <>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    <span>Buy Now</span>
+                  </>
+                )}
+              </button>
+            </div>
 
 
+
+            {/* 6. Success Notification Toast (Floating Top Alert) */}
+            {toastMsg &&
+              createPortal(
+                <div className="pd-cart-toast-top">
+                  <div className="pd-toast-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <div className="pd-toast-text-wrap">
+                    <span className="pd-toast-title">Added to Cart!</span>
+                    <span className="pd-toast-desc">{toastMsg}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="pd-toast-action-btn"
+                    onClick={() => {
+                      setToastMsg('');
+                      setIsCartOpen(true);
+                    }}
+                  >
+                    View Cart →
+                  </button>
+                  <button
+                    type="button"
+                    className="pd-toast-close"
+                    onClick={() => setToastMsg('')}
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>,
+                document.body
+              )}
           </div>
         </div>
       </div>
@@ -1014,6 +1452,16 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
           </div>,
           document.body
         )}
+
+      {/* Shopping Cart Drawer */}
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cartItems}
+        onUpdateQuantity={handleUpdateCartQuantity}
+        onRemoveItem={handleRemoveCartItem}
+        initialCheckout={isDirectCheckout}
+      />
     </div>
   );
 };

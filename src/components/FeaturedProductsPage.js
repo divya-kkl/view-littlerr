@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './CategoryPage.css';
 import { getProductsFromSupabase } from '../services/productService';
 import { getTagsFromSupabase } from '../services/tagService';
-import { getProductWeightDisplay } from '../admin/product/ProductPriceCalculator';
+import { getProductWeightDisplay, getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
 import LoadMoreSection from './LoadMoreSection';
 import SortDropdown from './SortDropdown';
 
@@ -40,7 +40,7 @@ const FeaturedProductsPage = ({ liveRates = [] }) => {
             t => t.name?.toLowerCase() === targetTagName.toLowerCase() || t.dbId === targetTagName
           );
 
-          setTagTitle(matchedTag ? `${matchedTag.name} Collection` : `${targetTagName.toUpperCase()} Jewellery`);
+          setTagTitle(matchedTag ? `${matchedTag.name} Collection` : `${targetTagName.toUpperCase()} little_rr`);
 
           matched = allProducts.filter(p => {
             if (matchedTag) {
@@ -49,7 +49,7 @@ const FeaturedProductsPage = ({ liveRates = [] }) => {
             return (p.tagName && p.tagName.toLowerCase() === targetTagName.toLowerCase()) || p.tagId === targetTagName;
           });
         } else {
-          setTagTitle('All Jewellery Collections');
+          setTagTitle('All little_rr Collections');
           // Show all products when viewing all-products or favorites
           matched = allProducts;
         }
@@ -104,8 +104,8 @@ const FeaturedProductsPage = ({ liveRates = [] }) => {
         )}
       </div>
 
-        {/* Main Content Area */}
-        <div className="container category-page-layout">
+      {/* Main Content Area */}
+      <div className="container category-page-layout">
         <main className="category-main-content">
           <div className="category-toolbar">
             <div className="sort-box">
@@ -144,7 +144,9 @@ const FeaturedProductsPage = ({ liveRates = [] }) => {
           ) : (
             <>
               <div className="products-grid">
-                {filteredProducts.slice(0, visibleCount).map((product) => (
+                {filteredProducts.slice(0, visibleCount).map((product) => {
+                  const priceInfo = getProductPriceInfo(product, liveRates);
+                  return (
                   <div key={product.id} className="product-card">
                     <div
                       className="product-img-wrapper"
@@ -166,16 +168,38 @@ const FeaturedProductsPage = ({ liveRates = [] }) => {
                         onClick={() => {
                           window.location.href = `/product/${encodeURIComponent(product.name.toLowerCase())}`;
                         }}
-                        style={{ marginBottom: '8px', color: '#001a33', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
+                        style={{ marginBottom: '8px', color: '#001a33', fontSize: '1.05rem', fontWeight: 'bold', cursor: 'pointer' }}
                       >
                         {product.name}
                       </h3>
 
-                      <div className="product-weight-purity" style={{ marginBottom: '12px', color: '#003366', fontSize: '0.9rem' }}>
+                      <div className="product-weight-purity" style={{ marginBottom: '8px', color: '#003366', fontSize: '0.88rem' }}>
                         {getProductWeightDisplay(product)} • {product.purity ? product.purity.replace(/\s*gold/i, '').trim() || '22K' : '22K'}
                       </div>
 
-
+                      <div className="product-price-section" style={{ marginBottom: '12px' }}>
+                        {priceInfo.sellingPrice > 0 ? (
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary-green, #003B2F)' }}>
+                              ₹{priceInfo.sellingPrice.toLocaleString('en-IN')}
+                            </span>
+                            {priceInfo.mrp > priceInfo.sellingPrice && (
+                              <span style={{ fontSize: '0.85rem', color: '#9ca3af', textDecoration: 'line-through' }}>
+                                ₹{priceInfo.mrp.toLocaleString('en-IN')}
+                              </span>
+                            )}
+                            {priceInfo.discount > 0 && (
+                              <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 'bold' }}>
+                                ({priceInfo.discount}% OFF)
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#003B2F', fontSize: '0.9rem', fontWeight: 600 }}>
+                            Price on Request
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <button
@@ -206,7 +230,8 @@ const FeaturedProductsPage = ({ liveRates = [] }) => {
                       </svg>
                     </button>
                   </div>
-                ))}
+                );
+              })}
               </div>
 
               <LoadMoreSection

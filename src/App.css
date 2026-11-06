@@ -1,4 +1,4 @@
-.god-jewellery-app {
+.god-little_rr-app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -120,10 +120,12 @@
     width: 52px;
     height: 52px;
   }
+
   .floating-whatsapp-svg {
     width: 30px;
     height: 30px;
   }
+
   .floating-whatsapp-tooltip {
     display: none;
   }
@@ -135,5 +137,3 @@
     height: 42px;
   }
 }
-
-

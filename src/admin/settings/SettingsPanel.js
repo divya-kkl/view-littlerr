@@ -214,7 +214,7 @@ const SettingsPanel = () => {
                     type="email"
                     value={formData.store_email}
                     onChange={e => setFormData({ ...formData, store_email: e.target.value })}
-                    placeholder="e.g. support@godjewellery.com"
+                    placeholder="e.g. support@godlittle_rr.com"
                   />
                 </div>
 

@@ -150,11 +150,11 @@ const Footer = ({ onSelectCategory, onOpenCalculator, logoUrl, shopName = 'Sri v
                     <div className="nav-shimmer" style={{ display: 'inline-block', width: '150px', height: '14px', borderRadius: '4px' }}></div>
                   ) : (
                     <a
-                      href={`mailto:${siteSettings?.store_email || 'support@godjewellery.com'}`}
+                      href={`mailto:${siteSettings?.store_email || 'support@godlittle_rr.com'}`}
                       className="footer-phone-link"
                       title="Send Email"
                     >
-                      {siteSettings?.store_email || 'support@godjewellery.com'}
+                      {siteSettings?.store_email || 'support@godlittle_rr.com'}
                     </a>
                   )}
                 </span>
@@ -201,7 +201,7 @@ const Footer = ({ onSelectCategory, onOpenCalculator, logoUrl, shopName = 'Sri v
             </div>
           </div>
 
-          
+
 
           <div className="footer-map-col">
             <h4 className="footer-col-title">Store Location</h4>
