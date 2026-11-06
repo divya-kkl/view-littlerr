@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './CategoryPage.css';
 import { getProductsFromSupabase } from '../services/productService';
 import { getTagsFromSupabase } from '../services/tagService';
-import { getProductWeightDisplay, getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
+import { getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
 import LoadMoreSection from './LoadMoreSection';
 import SortDropdown from './SortDropdown';
 
@@ -172,10 +172,6 @@ const FeaturedProductsPage = ({ liveRates = [] }) => {
                       >
                         {product.name}
                       </h3>
-
-                      <div className="product-weight-purity" style={{ marginBottom: '8px', color: '#003366', fontSize: '0.88rem' }}>
-                        {getProductWeightDisplay(product)} • {product.purity ? product.purity.replace(/\s*gold/i, '').trim() || '22K' : '22K'}
-                      </div>
 
                       <div className="product-price-section" style={{ marginBottom: '12px' }}>
                         {priceInfo.sellingPrice > 0 ? (

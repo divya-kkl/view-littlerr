@@ -548,25 +548,6 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
     );
   }
 
-  const { makingCharge } = calculateFinalPrice(product, ratesToUse);
-
-  // Wastage / Making Charge display calculation
-  const netWt = parseFloat(product.netWeight) > 0
-    ? parseFloat(product.netWeight)
-    : (parseFloat(product.grossWeight) > 0
-      ? parseFloat(product.grossWeight)
-      : (parseFloat(product.weight) || 0));
-  const mcPercent =
-    parseFloat(product.makingChargePercent) || (product.mcType === 'percent' ? parseFloat(product.makingCharge) : 0);
-  let wastageDisplay = '0';
-  if (mcPercent > 0 && netWt > 0) {
-    wastageDisplay = `${((netWt * mcPercent) / 100).toFixed(3)} g`;
-  } else if (parseFloat(product.makingCharge) > 0) {
-    wastageDisplay = `₹ ${parseFloat(product.makingCharge).toLocaleString('en-IN')}`;
-  } else if (makingCharge > 0) {
-    wastageDisplay = `₹ ${makingCharge.toLocaleString('en-IN')}`;
-  }
-
   const breadcrumbSubcategory = product.subcategoryName
     ? product.subcategoryName.toUpperCase()
     : product.categoryName
@@ -1247,35 +1228,6 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
               <div className="pd-info-row">
                 <div className="pd-info-label">Brand</div>
                 <div className="pd-info-value">{product.categoryName || 'Gold'}</div>
-              </div>
-
-              <div className="pd-info-row">
-                <div className="pd-info-label">Category</div>
-                <div className="pd-info-value">{product.categoryName || 'Gold'}</div>
-              </div>
-
-              <div className="pd-info-row">
-                <div className="pd-info-label">Metal Purity</div>
-                <div className="pd-info-value">{product.purity ? product.purity.replace(' Gold', '') : '22K'}</div>
-              </div>
-
-              <div className="pd-info-row">
-                <div className="pd-info-label">Net Weight</div>
-                <div className="pd-info-value">
-                  {product.netWeight && parseFloat(product.netWeight) > 0 ? `${product.netWeight} g` : '0'}
-                </div>
-              </div>
-
-              <div className="pd-info-row">
-                <div className="pd-info-label">Wastage / Making Charge</div>
-                <div className="pd-info-value">{wastageDisplay}</div>
-              </div>
-
-              <div className="pd-info-row">
-                <div className="pd-info-label">Gross Weight</div>
-                <div className="pd-info-value">
-                  {product.grossWeight && parseFloat(product.grossWeight) > 0 ? `${product.grossWeight} g` : '0'}
-                </div>
               </div>
             </div>
 
