@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-import { CATEGORIES as DEFAULT_CATEGORIES } from '../data/jewelleryData';
+import { CATEGORIES as DEFAULT_CATEGORIES } from '../data/little_rrData';
 
 export const CATEGORIES_SQL_SCHEMA = `-- SQL Setup`;
 
@@ -90,7 +90,7 @@ export async function updateCategoryInSupabase(dbId, updates) {
 
 export async function deleteCategoryInSupabase(dbId) {
   try {
-    
+
     const { error: prodErr, count: prodCount } = await supabase
       .from('products')
       .select('id', { count: 'exact' })
@@ -105,7 +105,7 @@ export async function deleteCategoryInSupabase(dbId) {
       };
     }
 
-  
+
     const { error: subErr, count: subCount } = await supabase
       .from('subcategories')
       .select('id', { count: 'exact' })

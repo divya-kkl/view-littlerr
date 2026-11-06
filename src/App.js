@@ -7,7 +7,6 @@ import Categories from './components/Categories';
 import ProductGrid from './components/ProductGrid';
 import GoldCalculatorModal from './components/GoldCalculatorModal';
 import Banner2Section from './components/Banner2Section';
-// import BudgetDealsSection from './components/BudgetDealsSection';
 import Testimonials from './components/Testimonials';
 
 import QuickViewModal from './components/QuickViewModal';
@@ -17,11 +16,15 @@ import SearchPage from './components/SearchPage';
 import FeaturedProductsPage from './components/FeaturedProductsPage';
 import Footer from './components/Footer';
 import ContactUs from './components/ContactUs';
+import AccountPage from './components/AccountPage';
+import CheckoutPage from './components/CheckoutPage';
 import AdminPanel from './admin/AdminPanel';
 
-import { PRODUCTS } from './data/jewelleryData';
+import { PRODUCTS } from './data/little_rrData';
 import { getRatesFromSupabase } from './services/rateService';
 import { getSiteSettings } from './services/settingService';
+import { getTagsFromSupabase } from './services/tagService';
+import { supabase } from './supabaseClient';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleWishlist } from './redux/slices/wishlistSlice';
 import { setLiveRates } from './redux/slices/ratesSlice';
@@ -39,6 +42,7 @@ function App() {
   const [goldRates, setGoldRates] = useState([]);
   const [isLoadingRates, setIsLoadingRates] = useState(true);
   const [products] = useState(PRODUCTS);
+  const [siteTags, setSiteTags] = useState([]);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [siteSettings, setSiteSettings] = useState(null);
@@ -68,6 +72,13 @@ function App() {
       }, 1500);
     };
 
+    const fetchTags = async () => {
+      const { data } = await getTagsFromSupabase(true);
+      if (data && data.length > 0) {
+        setSiteTags(data);
+      }
+    };
+
     const fetchSettings = async () => {
       const { data } = await getSiteSettings();
       if (data) {
@@ -88,7 +99,20 @@ function App() {
     };
 
     fetchRates();
+    fetchTags();
     fetchSettings();
+
+    // Supabase Realtime Listener for Tags
+    const tagChannel = supabase
+      .channel('app_tags_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, () => {
+        fetchTags();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(tagChannel);
+    };
   }, [dispatch]);
 
   const handleToggleWishlist = (product) => {
@@ -103,6 +127,13 @@ function App() {
   const isSubcategoryRoute = window.location.pathname.startsWith('/subcategory/');
   const isSearchRoute = window.location.pathname.startsWith('/search');
   const isContactRoute = window.location.pathname === '/contact' || window.location.pathname === '/contact-us';
+  const isCheckoutRoute = window.location.pathname === '/checkout' ||
+    window.location.pathname === '/order';
+  const isAccountRoute = window.location.pathname === '/account' ||
+    window.location.pathname === '/profile' ||
+    window.location.pathname === '/login' ||
+    window.location.pathname === '/register' ||
+    window.location.pathname === '/user';
   const isFeaturedRoute = window.location.pathname === '/featured' ||
     window.location.pathname === '/products' ||
     window.location.pathname === '/all-products' ||
@@ -119,8 +150,7 @@ function App() {
   }
 
   return (
-    <div className="god-jewellery-app">
-
+    <div className="god-little_rr-app">
       <GoldRateTicker
         rates={goldRates}
         isLoadingRates={isLoadingRates}
@@ -148,6 +178,10 @@ function App() {
 
       {isContactRoute ? (
         <ContactUs siteSettings={siteSettings} isLoadingSettings={isLoadingSettings} />
+      ) : isAccountRoute ? (
+        <AccountPage siteSettings={siteSettings} />
+      ) : isCheckoutRoute ? (
+        <CheckoutPage siteSettings={siteSettings} liveRates={currentRates} />
       ) : isProductRoute ? (
         <ProductDetailsPage
           key={window.location.pathname}
@@ -183,39 +217,46 @@ function App() {
             }}
           />
 
-          <ProductGrid
-            title="Featured Jewellery"
-            subtitle="EXQUISITE CRAFTSMANSHIP"
-            targetTag="Featured Jewellery"
-            sectionId="featured-products"
-            products={products}
-            activeCategory={activeCategory}
-            onSelectCategory={setActiveCategory}
-            searchQuery={searchQuery}
-            wishlist={currentWishlist}
-            onToggleWishlist={handleToggleWishlist}
-            onQuickView={(product) => setQuickViewProduct(product)}
-            liveRates={currentRates}
-          />
-
-          <Banner2Section />
-          {/* <BudgetDealsSection liveRates={currentRates} /> */}
-
-          {/* God Moulding Product Section */}
-          <ProductGrid
-            title="God Moulding"
-            subtitle="DIVINE CRAFTSMANSHIP"
-            targetTag="God Moulding"
-            sectionId="god-moulding-section"
-            products={products}
-            activeCategory={activeCategory}
-            onSelectCategory={setActiveCategory}
-            searchQuery={searchQuery}
-            wishlist={currentWishlist}
-            onToggleWishlist={handleToggleWishlist}
-            onQuickView={(product) => setQuickViewProduct(product)}
-            liveRates={currentRates}
-          />
+          {/* Dynamic Product Sections based on Active Tags */}
+          {siteTags.length > 0 ? (
+            siteTags.map((tag, idx) => (
+              <React.Fragment key={tag.id || tag.dbId || idx}>
+                <ProductGrid
+                  title={tag.name}
+                  subtitle={tag.code ? `${tag.code.toUpperCase()} COLLECTION` : 'EXQUISITE CRAFTSMANSHIP'}
+                  targetTag={tag.name}
+                  sectionId={`tag-section-${tag.id || idx}`}
+                  products={products}
+                  activeCategory={activeCategory}
+                  onSelectCategory={setActiveCategory}
+                  searchQuery={searchQuery}
+                  wishlist={currentWishlist}
+                  onToggleWishlist={handleToggleWishlist}
+                  onQuickView={(product) => setQuickViewProduct(product)}
+                  liveRates={currentRates}
+                />
+                {idx === 0 && <Banner2Section />}
+              </React.Fragment>
+            ))
+          ) : (
+            <>
+              <ProductGrid
+                title="Featured Products"
+                subtitle="EXQUISITE CRAFTSMANSHIP"
+                targetTag={null}
+                sectionId="featured-products"
+                products={products}
+                activeCategory={activeCategory}
+                onSelectCategory={setActiveCategory}
+                searchQuery={searchQuery}
+                wishlist={currentWishlist}
+                onToggleWishlist={handleToggleWishlist}
+                onQuickView={(product) => setQuickViewProduct(product)}
+                liveRates={currentRates}
+              />
+              <Banner2Section />
+            </>
+          )}
 
           <Testimonials shopName={siteSettings?.shop_name} isLoadingSettings={isLoadingSettings} />
         </>
@@ -236,8 +277,6 @@ function App() {
         rates={currentRates}
       />
 
-
-
       <QuickViewModal
         product={quickViewProduct}
         onClose={() => setQuickViewProduct(null)}
@@ -250,7 +289,7 @@ function App() {
         const digits = String(rawPhone).replace(/\D/g, '');
         const formattedPhone = digits.length >= 10 ? (digits.length === 10 ? `91${digits}` : digits) : "";
         const shopName = siteSettings?.shop_name;
-        const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(`Hello ${shopName}, I would like to inquire about your jewellery collections.`)}`;
+        const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(`Hello ${shopName}, I would like to inquire about your little_rr collections.`)}`;
         return (
           <a
             href={whatsappUrl}

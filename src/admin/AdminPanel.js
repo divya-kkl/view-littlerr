@@ -11,6 +11,7 @@ import {
 } from '../redux/slices/adminSlice';
 import DashboardPanel from './dashboard/DashboardPanel';
 import CategoryPanel from './category/CategoryPanel';
+import TopBannerPanel from './banner/TopBannerPanel';
 import BannerPanel from './banner/BannerPanel';
 import Banner2Panel from './banner/Banner2Panel';
 import SubcategoryPanel from './subcategory/SubcategoryPanel';
@@ -21,6 +22,10 @@ import RatePanel from './rate/RatePanel';
 import RateTypePanel from './rate/RateTypePanel';
 import TestimonialPanel from './testimonial/TestimonialPanel';
 import SettingsPanel from './settings/SettingsPanel';
+import UserPanel from './user/UserPanel';
+import CartPanel from './cart/CartPanel';
+import OrderPanel from './orders/OrderPanel';
+import PaymentMethodPanel from './payment/PaymentMethodPanel';
 
 const AdminPanel = ({ onClose }) => {
   const dispatch = useDispatch();
@@ -62,8 +67,6 @@ const AdminPanel = ({ onClose }) => {
     dispatch(logoutAdmin());
   };
 
-
-
   if (loading) return <div style={{ padding: '50px', textAlign: 'center' }}>Loading...</div>;
 
   if (!session) {
@@ -93,18 +96,14 @@ const AdminPanel = ({ onClose }) => {
     );
   }
 
-
-
-
   return (
     <div className="admin-layout">
-
       <div className="admin-sidebar">
         <div className="admin-sidebar-brand">
           Admin
         </div>
         <div className="admin-menu">
-          {['Dashboard', 'Banners', 'Banner 2', 'Live Rates', 'Rate Types', 'Categories', 'Subcategories', 'Child Categories', 'Tags', 'Products', 'Testimonials', 'Shop Details'].map((menu) => (
+          {['Dashboard', 'Orders', 'Payment Methods', 'Cart Items', 'Users', 'Products', 'Top Banners', 'Banners', 'Banner 2', 'Categories', 'Subcategories', 'Child Categories', 'Tags', 'Testimonials', 'Live Rates', 'Rate Types', 'Shop Details'].map((menu) => (
             <div
               key={menu}
               className={`admin-menu-item ${activeMenu === menu ? 'active' : ''}`}
@@ -119,13 +118,10 @@ const AdminPanel = ({ onClose }) => {
         </div>
       </div>
 
-
       <div className="admin-main">
-
         <div className="admin-header">
           <h2>{activeMenu}</h2>
           <div className="admin-profile">
-
             <div
               className="profile-icon"
               onClick={() => dispatch(toggleProfileDropdown())}
@@ -135,7 +131,6 @@ const AdminPanel = ({ onClose }) => {
                 <circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-
 
             {isProfileDropdownOpen && (
               <div className="profile-dropdown">
@@ -166,10 +161,19 @@ const AdminPanel = ({ onClose }) => {
           </div>
         </div>
 
-
         <div className="admin-content-body">
           {activeMenu === 'Dashboard' ? (
             <DashboardPanel />
+          ) : activeMenu === 'Orders' ? (
+            <OrderPanel />
+          ) : activeMenu === 'Payment Methods' ? (
+            <PaymentMethodPanel />
+          ) : activeMenu === 'Users' ? (
+            <UserPanel />
+          ) : activeMenu === 'Cart Items' ? (
+            <CartPanel />
+          ) : activeMenu === 'Top Banners' ? (
+            <TopBannerPanel />
           ) : activeMenu === 'Live Rates' ? (
             <RatePanel />
           ) : activeMenu === 'Rate Types' ? (

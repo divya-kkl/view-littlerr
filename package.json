@@ -1,5 +1,5 @@
 {
-  "name": "view-jewellery",
+  "name": "view-little_rr",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -48,12 +48,12 @@
   "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sankarsham/srivinayagamjewellery.git"
+    "url": "git+https://github.com/sankarsham/srivinayagamlittle_rr.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/sankarsham/srivinayagamjewellery/issues"
+    "url": "https://github.com/sankarsham/srivinayagamlittle_rr/issues"
   }
 }

@@ -7,6 +7,7 @@ import { getSubcategoriesFromSupabase } from '../../services/subcategoryService'
 import { getRatesFromSupabase } from '../../services/rateService';
 import { getBannersFromSupabase } from '../../services/bannerService';
 import { getTestimonialsFromSupabase } from '../../services/testimonialService';
+import { getAllUsersForAdmin } from '../../services/userService';
 import '../AdminPanel.css';
 
 const DashboardPanel = () => {
@@ -17,6 +18,7 @@ const DashboardPanel = () => {
     subcategoriesCount: 0,
     bannersCount: 0,
     testimonialsCount: 0,
+    usersCount: 0,
   });
   const [liveRates, setLiveRates] = useState([]);
   const [recentProducts, setRecentProducts] = useState([]);
@@ -29,13 +31,14 @@ const DashboardPanel = () => {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [prodRes, catRes, subcatRes, rateRes, bannerRes, testRes] = await Promise.all([
+      const [prodRes, catRes, subcatRes, rateRes, bannerRes, testRes, userRes] = await Promise.all([
         getProductsFromSupabase(),
         getCategoriesFromSupabase(false),
         getSubcategoriesFromSupabase(null, false),
         getRatesFromSupabase(),
         getBannersFromSupabase(),
-        getTestimonialsFromSupabase()
+        getTestimonialsFromSupabase(),
+        getAllUsersForAdmin()
       ]);
 
       const prods = prodRes.data || [];
@@ -51,6 +54,7 @@ const DashboardPanel = () => {
         subcategoriesCount: subcats.length,
         bannersCount: banners.length,
         testimonialsCount: testimonials.length,
+        usersCount: userRes?.data?.length || 0,
       });
 
       setLiveRates(rates.filter((r) => r.isCurrent));
@@ -117,6 +121,15 @@ const DashboardPanel = () => {
       bg: '#fff9e6',
       target: 'Testimonials',
       description: 'Customer reviews'
+    },
+    {
+      title: 'Registered Users',
+      count: stats.usersCount,
+      icon: '👥',
+      color: '#003B2F',
+      bg: '#e6f4f1',
+      target: 'Users',
+      description: 'Customer accounts & addresses'
     }
   ];
 
@@ -126,7 +139,7 @@ const DashboardPanel = () => {
       <div className="dashboard-welcome-banner">
         <div className="welcome-text">
           <h2>Welcome to Admin Dashboard </h2>
-          <p>Monitor your jewellery store performance, inventory, and live rates at a glance.</p>
+          <p>Monitor your little_rr store performance, inventory, and live rates at a glance.</p>
         </div>
         <div className="dashboard-quick-actions">
           <button

@@ -46,12 +46,12 @@ export async function getSubcategoriesFromSupabase(categoryId = null, activeOnly
       nameMap[item.id] = item.name;
     });
 
-    return { 
+    return {
       data: data.map(row => ({
         ...normalizeSubcategory(row),
         parentSubcategoryName: row.subcategory_id ? (nameMap[row.subcategory_id] || 'Parent Subcategory') : null
-      })), 
-      error: null 
+      })),
+      error: null
     };
   } catch (err) {
     console.error('Error fetching subcategories:', err);
@@ -75,9 +75,9 @@ export async function getChildCategories(subcategoryId, activeOnly = true) {
     const { data, error } = await query;
     if (error) throw error;
 
-    return { 
-      data: (data || []).map(normalizeSubcategory), 
-      error: null 
+    return {
+      data: (data || []).map(normalizeSubcategory),
+      error: null
     };
   } catch (err) {
     console.error('Error fetching child categories:', err);
@@ -85,7 +85,7 @@ export async function getChildCategories(subcategoryId, activeOnly = true) {
   }
 }
 
-// Fetch Breadcrumb hierarchy (e.g. Home > Jewellery > Bangles > Antique Bangles)
+// Fetch Breadcrumb hierarchy (e.g. Home > little_rr > Bangles > Antique Bangles)
 export async function getCategoryBreadcrumbs(subcategoryId) {
   const crumbs = [];
   let currentId = subcategoryId;

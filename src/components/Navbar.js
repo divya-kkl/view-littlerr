@@ -5,6 +5,15 @@ import { getCategoriesFromSupabase } from '../services/categoryService';
 import { getSubcategoriesFromSupabase } from '../services/subcategoryService';
 import { searchProductsInSupabase } from '../services/productService';
 import { getSiteSettings } from '../services/settingService';
+import { getCurrentUser } from '../services/userService';
+import { supabase } from '../supabaseClient';
+import AuthModal from './AuthModal';
+import CartDrawer from './CartDrawer';
+import {
+  fetchCartItemsFromSupabase,
+  updateCartItemQuantityInSupabase,
+  removeCartItemFromSupabase
+} from '../services/cartService';
 
 const Navbar = ({
   activeCategory,
@@ -22,6 +31,100 @@ const Navbar = ({
   const [dynamicCategories, setDynamicCategories] = useState([]);
   const [dynamicSubcategories, setDynamicSubcategories] = useState([]);
   const [isLoadingCats, setIsLoadingCats] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Cart State for Navbar
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('luxury_jewel_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const loadNavCart = () => {
+    fetchCartItemsFromSupabase().then(res => {
+      if (res?.success && res.cart) {
+        setCartItems(res.cart);
+        try {
+          localStorage.setItem('luxury_jewel_cart', JSON.stringify(res.cart));
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+    });
+  };
+
+  useEffect(() => {
+    loadNavCart();
+
+    const handleCartSync = () => {
+      try {
+        const saved = localStorage.getItem('luxury_jewel_cart');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setCartItems(parsed);
+        }
+      } catch (e) { }
+      loadNavCart();
+    };
+
+    window.addEventListener('storage', handleCartSync);
+    window.addEventListener('cartUpdated', handleCartSync);
+
+    return () => {
+      window.removeEventListener('storage', handleCartSync);
+      window.removeEventListener('cartUpdated', handleCartSync);
+    };
+  }, []);
+
+  const handleUpdateNavCartQuantity = async (id, newQty) => {
+    setCartItems(prev => {
+      let updated;
+      if (newQty <= 0) {
+        updated = prev.filter(item => item.id !== id);
+      } else {
+        updated = prev.map(item => item.id === id ? { ...item, quantity: newQty } : item);
+      }
+      try {
+        localStorage.setItem('luxury_jewel_cart', JSON.stringify(updated));
+      } catch (e) { }
+      return updated;
+    });
+
+    if (id) {
+      await updateCartItemQuantityInSupabase(id, newQty);
+    }
+  };
+
+  const handleRemoveNavCartItem = async (id) => {
+    setCartItems(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      try {
+        localStorage.setItem('luxury_jewel_cart', JSON.stringify(updated));
+      } catch (e) { }
+      return updated;
+    });
+
+    if (id) {
+      await removeCartItemFromSupabase(id);
+    }
+  };
+
+  const cartCount = cartItems.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
+
+  useEffect(() => {
+    getCurrentUser().then(u => setCurrentUser(u));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user || null);
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -34,7 +137,6 @@ const Navbar = ({
     };
   }, [isMobileMenuOpen]);
 
-  // Automatically close mobile menu when exiting responsive view to desktop
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 1080) {
@@ -45,7 +147,6 @@ const Navbar = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Dynamic Shop Details from Admin Panel (logo and shop name)
   const [currentLogo, setCurrentLogo] = useState(logoUrl || null);
   const [currentShopName, setCurrentShopName] = useState(shopName || '');
 
@@ -71,7 +172,6 @@ const Navbar = ({
     return () => window.removeEventListener('siteSettingsUpdated', fetchFreshSettings);
   }, []);
 
-  // Live Search States
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -79,7 +179,6 @@ const Navbar = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const searchBarRef = useRef(null);
 
-  // Detect scroll to style navbar smoothly
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.pageYOffset || document.documentElement.scrollTop || window.scrollY || 0;
@@ -91,7 +190,6 @@ const Navbar = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close search/dropdown when clicked outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -113,10 +211,8 @@ const Navbar = ({
     };
   }, []);
 
-  // Local Search Input State with 350ms Debounce
   const [searchTerm, setSearchTerm] = useState(searchQuery || '');
 
-  // Fetch search results with debounced query
   useEffect(() => {
     const trimmed = searchTerm.trim();
     if (!trimmed) {
@@ -142,7 +238,6 @@ const Navbar = ({
     return () => clearTimeout(timer);
   }, [searchTerm, setSearchQuery]);
 
-  // Fetch categories & subcategories from Supabase
   useEffect(() => {
     const fetchCats = async () => {
       const { data } = await getCategoriesFromSupabase(true);
@@ -172,7 +267,6 @@ const Navbar = ({
     }
   }, [dynamicSubcategories, setActiveCategory]);
 
-  // Purely Dynamic Categories from Supabase + Contact Link
   const navLinks = [
     { id: 'all', label: 'HOME' },
     ...dynamicCategories.map((cat) => ({
@@ -227,8 +321,6 @@ const Navbar = ({
               )}
             </div>
           )}
-
-          
         </div>
 
         {/* 2. Center: Dynamic Categories Navigation Links */}
@@ -309,7 +401,7 @@ const Navbar = ({
           )}
         </nav>
 
-        {/* 3. Right: Search in Navbar */}
+        {/* 3. Right: Search & Profile in Navbar */}
         <div className="vj-right-actions" ref={searchBarRef}>
           {/* Desktop Search Bar directly inside Navbar */}
           <div className="vj-navbar-search-box desktop-only">
@@ -366,15 +458,14 @@ const Navbar = ({
               <div className="vj-floating-search-results">
                 <div className="vj-search-header-row">
                   <span>
-                    {isSearching ? 'Searching Jewellery...' : `Found ${searchResults.length} Products`}
+                    {isSearching ? 'Searching little_rr...' : `Found ${searchResults.length} Products`}
                   </span>
                   <span className="vj-search-hint">Press Enter ↵</span>
                 </div>
 
                 {searchResults.length === 0 && !isSearching ? (
                   <div className="vj-search-empty-state">
-                    <p>No jewellery found for <strong>"{searchTerm}"</strong></p>
-                    <span>  </span>
+                    <p>No little_rr found for <strong>"{searchTerm}"</strong></p>
                   </div>
                 ) : (
                   <div className="vj-floating-results-list">
@@ -392,10 +483,9 @@ const Navbar = ({
                           <div className="vj-result-info">
                             <span className="vj-result-name">{item.name}</span>
                             <span className="vj-result-sub">
-                              {item.categoryName || 'Jewellery'} {item.purity ? `• ${item.purity}` : ''} {item.netWeight ? `• ${item.netWeight}g` : ''}
+                              {item.categoryName || 'little_rr'}
                             </span>
                           </div>
-
                         </div>
                       );
                     })}
@@ -417,12 +507,47 @@ const Navbar = ({
             )}
           </div>
 
+          {/* Shopping Cart Button */}
+          <button
+            type="button"
+            className="vj-cart-btn"
+            onClick={() => {
+              loadNavCart();
+              setIsCartOpen(true);
+            }}
+            title={cartCount > 0 ? `Shopping Cart (${cartCount} items)` : 'Shopping Cart (Empty)'}
+            aria-label="Shopping Cart"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+            {cartCount > 0 && (
+              <span className="vj-cart-count-badge">{cartCount}</span>
+            )}
+          </button>
+
+          {/* User Profile Button */}
+          <button
+            type="button"
+            className="vj-profile-btn"
+            onClick={() => { window.location.href = '/account'; }}
+            title={currentUser ? ('Account: ' + (currentUser.user_metadata?.full_name || currentUser.email)) : 'Sign In / Register'}
+            aria-label="Profile"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </button>
+
           {/* Mobile Search Icon Trigger */}
           <button
             type="button"
             className={`vj-search-icon-btn mobile-only ${isSearchOpen ? 'active' : ''}`}
             onClick={() => setIsSearchOpen(!isSearchOpen)}
-            title="Search by jewellery name"
+            title="Search by little_rr name"
             aria-label="Search"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -476,61 +601,6 @@ const Navbar = ({
               </svg>
             </button>
           </div>
-
-          {/* Bilingual Live Search Suggestions Dropdown */}
-          {searchTerm.trim() && (
-            <div className="vj-floating-search-results">
-              <div className="vj-search-header-row">
-                <span>
-                  {isSearching ? 'Searching Jewellery...' : `Found ${searchResults.length} Products`}
-                </span>
-                <span className="vj-search-hint">Press Enter ↵</span>
-              </div>
-
-              {searchResults.length === 0 && !isSearching ? (
-                <div className="vj-search-empty-state">
-                  <p>No jewellery found for <strong>"{searchTerm}"</strong></p>
-                  <span>  </span>
-                </div>
-              ) : (
-                <div className="vj-floating-results-list">
-                  {searchResults.slice(0, 5).map((item) => {
-                    return (
-                      <div
-                        key={item.id}
-                        className="vj-search-result-row"
-                        onClick={() => {
-                          setIsSearchOpen(false);
-                          window.location.href = `/product/${encodeURIComponent(item.name.toLowerCase())}`;
-                        }}
-                      >
-                        <img src={item.image} alt={item.name} className="vj-result-thumb" />
-                        <div className="vj-result-info">
-                          <span className="vj-result-name">{item.name}</span>
-                          <span className="vj-result-sub">
-                            {item.categoryName || 'Jewellery'} {item.purity ? `• ${item.purity}` : ''} {item.netWeight ? `• ${item.netWeight}g` : ''}
-                          </span>
-                        </div>
-
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {searchResults.length > 0 && (
-                <div
-                  className="vj-search-footer-action"
-                  onClick={() => {
-                    setIsSearchOpen(false);
-                    window.location.href = `/search?q=${encodeURIComponent(searchTerm.trim())}`;
-                  }}
-                >
-                  View all {searchResults.length} results →
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -571,7 +641,33 @@ const Navbar = ({
                 ×
               </button>
             </div>
+
             <div className="vj-drawer-links">
+              {/* User Account / Profile link in mobile drawer */}
+              <div
+                style={{
+                  padding: '14px 20px',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  color: '#D4AF37'
+                }}
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  window.location.href = '/account';
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                  {currentUser ? (currentUser.user_metadata?.full_name || 'My Account') : 'Sign In / Register'}
+                </span>
+              </div>
+
               {navLinks.map((link) => {
                 const categorySubcats = dynamicSubcategories.filter(
                   (s) => s.categoryId === link.id && !s.subcategoryId
@@ -653,6 +749,22 @@ const Navbar = ({
         </>,
         document.body
       )}
+
+      {/* Customer Login / Register / Profile & Addresses Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthChange={(u) => setCurrentUser(u)}
+      />
+
+      {/* Shopping Cart Drawer */}
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cartItems}
+        onUpdateQuantity={handleUpdateNavCartQuantity}
+        onRemoveItem={handleRemoveNavCartItem}
+      />
     </header>
   );
 };

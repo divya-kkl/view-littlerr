@@ -263,7 +263,7 @@ export const INSTAGRAM_POSTS = [
     id: 1,
     image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=600&q=80",
     likes: "2.4k",
-    tag: "@godjewellery_official"
+    tag: "@godlittle_rr_official"
   },
   {
     id: 2,
@@ -281,7 +281,7 @@ export const INSTAGRAM_POSTS = [
     id: 4,
     image: "https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?auto=format&fit=crop&w=600&q=80",
     likes: "4.2k",
-    tag: "#TempleJewellery"
+    tag: "#Templelittle_rr"
   },
   {
     id: 5,
@@ -293,6 +293,6 @@ export const INSTAGRAM_POSTS = [
     id: 6,
     image: "https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?auto=format&fit=crop&w=600&q=80",
     likes: "2.8k",
-    tag: "#GodJewellery"
+    tag: "#Godlittle_rr"
   }
 ];

@@ -55,7 +55,7 @@ const Categories = ({ activeCategory, onSelectCategory, onSelectSubcategory }) =
                   }}
                 >
                   <img
-                    src={subcat.image || 'https://via.placeholder.com/300x300?text=Jewellery'}
+                    src={subcat.image || 'https://via.placeholder.com/300x300?text=little_rr'}
                     alt={subcat.name}
                     className="category-tile-img"
                     loading="lazy"
