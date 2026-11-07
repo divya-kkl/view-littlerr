@@ -95,15 +95,21 @@ export async function logoutUser() {
 }
 
 // User Addresses CRUD
-export async function getUserAddresses(userId, email) {
+export async function getUserAddresses(userId, email, phone) {
   try {
     let query = supabase.from('user_addresses').select('*');
-    if (userId && email) {
-      query = query.or(`user_id.eq.${userId},email.eq.${email}`);
-    } else if (userId) {
-      query = query.eq('user_id', userId);
-    } else if (email) {
-      query = query.eq('email', email);
+    const orParts = [];
+    if (userId) orParts.push(`user_id.eq.${userId}`);
+    if (email) orParts.push(`email.eq.${email}`);
+    if (phone) {
+      const cleanPhone = String(phone).replace(/\D/g, '');
+      if (cleanPhone.length >= 7) {
+        orParts.push(`phone_number.ilike.%${cleanPhone.slice(-10)}%`);
+      }
+    }
+
+    if (orParts.length > 0) {
+      query = query.or(orParts.join(','));
     }
 
     const { data, error } = await query
@@ -187,16 +193,84 @@ export async function deleteUserAddress(id) {
 // ==========================================
 export async function getAllUsersForAdmin() {
   try {
-    const { data, error } = await supabase
-      .from('user_addresses')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let combined = [];
+    const seen = new Set();
 
-    if (error) throw error;
+    // 1. Fetch from user_addresses table
+    try {
+      const { data, error } = await supabase
+        .from('user_addresses')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        data.forEach(item => {
+          const key = `${item.full_name || ''}_${item.phone_number || ''}_${item.street_address || ''}`.toLowerCase();
+          if (item.full_name || item.street_address) {
+            seen.add(key);
+            combined.push(item);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Error fetching from user_addresses:', e);
+    }
+
+    // 2. Also fetch customer delivery addresses from orders table
+    try {
+      const { data: ordersData, error: ordersErr } = await supabase
+        .from('orders')
+        .select('id, customer_name, customer_phone, customer_email, street_address, city, state, country, pincode, address_type, order_notes, created_at')
+        .order('created_at', { ascending: false });
+
+      if (!ordersErr && Array.isArray(ordersData)) {
+        ordersData.forEach(o => {
+          if (o.customer_name || o.street_address) {
+            const key = `${o.customer_name || ''}_${o.customer_phone || ''}_${o.street_address || ''}`.toLowerCase();
+            if (!seen.has(key)) {
+              seen.add(key);
+              combined.push({
+                id: `order_addr_${o.id}`,
+                user_id: null,
+                email: o.customer_email || '',
+                full_name: o.customer_name || 'Customer',
+                phone_number: o.customer_phone || '',
+                street_address: o.street_address || '',
+                city: o.city || '',
+                state: o.state || '',
+                country: o.country || 'India',
+                pincode: o.pincode || '',
+                address_type: o.address_type || 'Home',
+                order_notes: o.order_notes || '',
+                is_default: false,
+                created_at: o.created_at,
+                source: 'Checkout Order'
+              });
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Error fetching addresses from orders:', e);
+    }
+
+    // 3. Also check localStorage for any locally saved addresses
+    try {
+      const localList = JSON.parse(localStorage.getItem('sv_all_saved_addresses') || '[]');
+      if (Array.isArray(localList)) {
+        localList.forEach(item => {
+          const key = `${item.full_name || ''}_${item.phone_number || ''}_${item.street_address || ''}`.toLowerCase();
+          if (!seen.has(key) && (item.full_name || item.street_address)) {
+            seen.add(key);
+            combined.push(item);
+          }
+        });
+      }
+    } catch (e) {}
 
     return {
       success: true,
-      data: data || []
+      data: combined
     };
   } catch (err) {
     console.error('Error fetching users for admin:', err);

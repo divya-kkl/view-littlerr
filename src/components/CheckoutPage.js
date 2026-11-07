@@ -8,6 +8,7 @@ import {
 } from '../services/cartService';
 import { createOrderInSupabase } from '../services/orderService';
 import { getPaymentMethodsFromSupabase, DEFAULT_PAYMENT_METHODS } from '../services/paymentMethodService';
+import { getUserAddresses, addUserAddress } from '../services/userService';
 
 const SAVED_CHECKOUT_KEY = 'sv_saved_checkout_details';
 
@@ -19,6 +20,8 @@ const CheckoutPage = ({ siteSettings }) => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
   const [copiedOrder, setCopiedOrder] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState('new');
 
   // Form State
   const [form, setForm] = useState({
@@ -29,6 +32,7 @@ const CheckoutPage = ({ siteSettings }) => {
     landmark: '',
     city: '',
     state: 'Tamil Nadu',
+    country: 'India',
     pincode: '',
     address_type: 'Home',
     payment_method: 'Cash on Delivery',
@@ -79,19 +83,87 @@ const CheckoutPage = ({ siteSettings }) => {
         }
       } catch (e) {}
 
-      // 3. Pre-fill from Supabase Auth Session
+      // 3. Pre-fill & Fetch Previous Saved User Addresses
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user && isMounted) {
-          const u = session.user;
-          setForm(prev => ({
-            ...prev,
-            customer_name: prev.customer_name || u.user_metadata?.full_name || '',
-            customer_email: prev.customer_email || u.email || '',
-            customer_phone: prev.customer_phone || u.user_metadata?.phone || ''
-          }));
+        let loadedAddresses = [];
+        let authUser = null;
+
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            authUser = session.user;
+            setForm(prev => ({
+              ...prev,
+              customer_name: prev.customer_name || authUser.user_metadata?.full_name || '',
+              customer_email: prev.customer_email || authUser.email || '',
+              customer_phone: prev.customer_phone || authUser.user_metadata?.phone || ''
+            }));
+          }
+        } catch (e) {}
+
+        // Read saved details from localStorage
+        const savedInfoRaw = localStorage.getItem(SAVED_CHECKOUT_KEY);
+        let savedPhone = '';
+        let savedEmail = '';
+        if (savedInfoRaw) {
+          try {
+            const p = JSON.parse(savedInfoRaw);
+            savedPhone = p.customer_phone || '';
+            savedEmail = p.customer_email || '';
+          } catch (e) {}
         }
-      } catch (e) {}
+
+        // 3a. Try fetching by user_id, email, or phone
+        try {
+          const addrRes = await getUserAddresses(
+            authUser?.id,
+            authUser?.email || savedEmail,
+            authUser?.user_metadata?.phone || savedPhone
+          );
+          if (addrRes?.success && Array.isArray(addrRes.data) && addrRes.data.length > 0) {
+            loadedAddresses = addrRes.data;
+          }
+        } catch (e) {}
+
+        // 3b. Fallback: If no addresses found for specific user/phone, fetch from user_addresses directly
+        if (loadedAddresses.length === 0) {
+          try {
+            const { data, error } = await supabase
+              .from('user_addresses')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(50);
+            if (!error && Array.isArray(data) && data.length > 0) {
+              loadedAddresses = data;
+            }
+          } catch (e) {}
+        }
+
+        // 3c. Merge with any locally stored addresses from localStorage
+        try {
+          const localSavedList = JSON.parse(localStorage.getItem('sv_all_saved_addresses') || '[]');
+          if (Array.isArray(localSavedList) && localSavedList.length > 0) {
+            const keys = new Set(
+              loadedAddresses.map(a => `${a.full_name || ''}_${a.phone_number || ''}_${a.street_address || ''}`.toLowerCase())
+            );
+            localSavedList.forEach(item => {
+              const k = `${item.full_name || ''}_${item.phone_number || ''}_${item.street_address || ''}`.toLowerCase();
+              if (!keys.has(k)) {
+                loadedAddresses.push(item);
+                keys.add(k);
+              }
+            });
+          }
+        } catch (e) {}
+
+        if (loadedAddresses.length > 0 && isMounted) {
+          setSavedAddresses(loadedAddresses);
+          // Default selection to '+ ADD NEW ADDRESS' matching Image 2
+          setSelectedAddressId('new');
+        }
+      } catch (e) {
+        console.error('Error fetching saved addresses:', e);
+      }
 
       // 4. Fetch Dynamic Payment Methods from Supabase
       try {
@@ -183,6 +255,38 @@ const CheckoutPage = ({ siteSettings }) => {
     }));
   };
 
+  const handleSelectSavedAddress = (addr) => {
+    setSelectedAddressId(addr.id);
+    setForm(prev => ({
+      ...prev,
+      customer_name: addr.full_name || prev.customer_name,
+      customer_phone: addr.phone_number || prev.customer_phone,
+      street_address: addr.street_address || '',
+      city: addr.city || '',
+      state: addr.state || 'Tamil Nadu',
+      country: addr.country || 'India',
+      address_type: addr.address_type || 'Home',
+      pincode: addr.pincode || '',
+      order_notes: addr.order_notes || prev.order_notes
+    }));
+  };
+
+  const handleAddNewAddress = () => {
+    setSelectedAddressId('new');
+    setForm(prev => ({
+      ...prev,
+      customer_name: '',
+      customer_phone: '',
+      street_address: '',
+      city: '',
+      state: 'Tamil Nadu',
+      country: 'India',
+      address_type: 'Home',
+      pincode: '',
+      order_notes: ''
+    }));
+  };
+
   // Handle Submit / Place Order
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
@@ -213,7 +317,12 @@ const CheckoutPage = ({ siteSettings }) => {
       return;
     }
 
-    if (!form.pincode.trim() || form.pincode.trim().length < 6) {
+    if (!form.state.trim()) {
+      alert('Please enter your state.');
+      return;
+    }
+
+    if (form.pincode && form.pincode.trim() && form.pincode.trim().length < 6) {
       alert('Please enter a valid 6-digit postal pincode.');
       return;
     }
@@ -271,6 +380,54 @@ const CheckoutPage = ({ siteSettings }) => {
         setPlacedOrder(res.order);
         setOrderSuccess(true);
         setCart([]);
+
+        // Auto-save address to user_addresses & localStorage
+        let currentUserId = null;
+        let currentUserEmail = form.customer_email || '';
+        try {
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          if (currentSession?.user) {
+            currentUserId = currentSession.user.id;
+            currentUserEmail = currentUserEmail || currentSession.user.email || '';
+          }
+        } catch (e) {}
+
+        const addressToSave = {
+          id: `addr_${Date.now()}`,
+          user_id: currentUserId,
+          email: currentUserEmail,
+          full_name: form.customer_name.trim(),
+          phone_number: form.customer_phone.trim(),
+          street_address: form.street_address.trim(),
+          city: form.city.trim(),
+          state: form.state.trim() || 'Tamil Nadu',
+          country: form.country || 'India',
+          address_type: form.address_type || 'Home',
+          pincode: form.pincode ? form.pincode.trim() : '',
+          order_notes: form.order_notes ? form.order_notes.trim() : '',
+          is_default: true,
+          created_at: new Date().toISOString()
+        };
+
+        try {
+          const currentLocal = JSON.parse(localStorage.getItem('sv_all_saved_addresses') || '[]');
+          const updatedLocal = [
+            addressToSave,
+            ...currentLocal.filter(
+              a => a.phone_number !== addressToSave.phone_number || a.street_address !== addressToSave.street_address
+            )
+          ];
+          localStorage.setItem('sv_all_saved_addresses', JSON.stringify(updatedLocal));
+        } catch (e) {}
+
+        if (currentUserId || form.saveInfo) {
+          try {
+            await addUserAddress(addressToSave);
+          } catch (saveErr) {
+            console.warn('Could not save address to user_addresses:', saveErr);
+          }
+        }
+
         window.dispatchEvent(new Event('orderPlaced'));
         window.dispatchEvent(new Event('cartUpdated'));
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -578,38 +735,9 @@ const CheckoutPage = ({ siteSettings }) => {
             <div className="co-card">
               <div className="co-card-header">
                 <span className="co-card-badge">1</span>
-                <h3>Contact Information</h3>
+                <h3>Account & Notification Email</h3>
               </div>
               <div className="co-card-body">
-                <div className="co-form-row">
-                  <div className="co-form-group">
-                    <label>Full Name <span className="req">*</span></label>
-                    <input
-                      type="text"
-                      name="customer_name"
-                      placeholder="e.g. Rahul Sharma"
-                      value={form.customer_name}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                  <div className="co-form-group">
-                    <label>Mobile Number <span className="req">*</span></label>
-                    <div className="co-phone-input">
-                      <span className="co-phone-prefix">+91</span>
-                      <input
-                        type="tel"
-                        name="customer_phone"
-                        placeholder="98765 43210"
-                        maxLength="10"
-                        value={form.customer_phone}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
                 <div className="co-form-group">
                   <label>Email Address <span className="co-optional">(for order updates & receipts)</span></label>
                   <input
@@ -630,78 +758,168 @@ const CheckoutPage = ({ siteSettings }) => {
                 <h3>Delivery Address</h3>
               </div>
               <div className="co-card-body">
-                <div className="co-form-group">
-                  <label>Flat / House No., Building, Street Name <span className="req">*</span></label>
-                  <textarea
-                    rows="2"
-                    name="street_address"
-                    placeholder="Door No, Street Name, Apartment name..."
-                    value={form.street_address}
-                    onChange={handleChange}
-                    required
-                  ></textarea>
-                </div>
+                {/* Saved addresses radio selector matching reference Image 2 */}
+                {savedAddresses.length > 0 && (
+                  <div className="co-saved-addresses-list">
+                    {savedAddresses.map((addr) => {
+                      const isSelected = selectedAddressId === addr.id;
+                      const addrText = [
+                        addr.street_address,
+                        addr.city,
+                        addr.state,
+                        addr.country || 'India'
+                      ].filter(Boolean).join(', ');
 
-                <div className="co-form-row">
-                  <div className="co-form-group">
-                    <label>Landmark <span className="co-optional">(Optional)</span></label>
-                    <input
-                      type="text"
-                      name="landmark"
-                      placeholder="Near Temple / Petrol bunk"
-                      value={form.landmark}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="co-form-group">
-                    <label>Pincode <span className="req">*</span></label>
-                    <input
-                      type="text"
-                      name="pincode"
-                      placeholder="e.g. 641001"
-                      maxLength="6"
-                      value={form.pincode}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                </div>
+                      return (
+                        <div
+                          key={addr.id}
+                          className={`co-saved-addr-card ${isSelected ? 'selected' : ''}`}
+                          onClick={() => handleSelectSavedAddress(addr)}
+                        >
+                          <div className="co-addr-radio-circle">
+                            {isSelected && <div className="co-addr-radio-dot" />}
+                          </div>
+                          <div className="co-saved-addr-body">
+                            <div className="co-saved-addr-header">
+                              <div className="co-saved-addr-name-row">
+                                <span className="co-saved-addr-type-pill">
+                                  {addr.address_type ? addr.address_type.toUpperCase() : 'OTHER'}
+                                </span>
+                                <span className="co-saved-addr-name">
+                                  {addr.full_name || 'Customer'}
+                                </span>
+                              </div>
+                              <div className="co-saved-addr-phone">
+                                {addr.phone_number}
+                              </div>
+                            </div>
+                            <div className="co-saved-addr-location">
+                              {addrText}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
 
-                <div className="co-form-row">
-                  <div className="co-form-group">
-                    <label>City / Town / District <span className="req">*</span></label>
-                    <input
-                      type="text"
-                      name="city"
-                      placeholder="e.g. Coimbatore"
-                      value={form.city}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                  <div className="co-form-group">
-                    <label>State <span className="req">*</span></label>
-                    <select
-                      name="state"
-                      value={form.state}
-                      onChange={handleChange}
-                      className="co-select"
-                      required
+                    {/* + ADD NEW ADDRESS Card matching reference Image 2 */}
+                    <div
+                      className={`co-add-new-addr-card ${selectedAddressId === 'new' ? 'selected' : ''}`}
+                      onClick={handleAddNewAddress}
                     >
-                      <option value="Tamil Nadu">Tamil Nadu</option>
-                      <option value="Kerala">Kerala</option>
-                      <option value="Karnataka">Karnataka</option>
-                      <option value="Andhra Pradesh">Andhra Pradesh</option>
-                      <option value="Telangana">Telangana</option>
-                      <option value="Maharashtra">Maharashtra</option>
-                      <option value="Delhi">Delhi</option>
-                      <option value="Other State">Other State</option>
-                    </select>
+                      <div className="co-addr-radio-circle">
+                        {selectedAddressId === 'new' && <div className="co-addr-radio-dot" />}
+                      </div>
+                      <span className="co-add-new-addr-label">
+                        + ADD NEW ADDRESS
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="co-form-group" style={{ marginTop: '1rem' }}>
-                  <label>Order Notes / Delivery Instructions <span className="co-optional">(Optional)</span></label>
+                {/* Dotted Address Form Box matching reference image 1 */}
+                {(selectedAddressId === 'new' || savedAddresses.length === 0) && (
+                  <div className="co-address-dotted-box">
+                    {/* Row 1: FULL NAME & PHONE NUMBER */}
+                    <div className="co-form-row">
+                      <div className="co-form-group">
+                        <label>FULL NAME <span className="req">*</span></label>
+                        <input
+                          type="text"
+                          name="customer_name"
+                          placeholder="Enter your full name"
+                          value={form.customer_name}
+                          onChange={handleChange}
+                          required
+                        />
+                      </div>
+                      <div className="co-form-group">
+                        <label>PHONE NUMBER <span className="req">*</span></label>
+                        <input
+                          type="tel"
+                          name="customer_phone"
+                          placeholder="Enter 10 digit phone number"
+                          maxLength="10"
+                          value={form.customer_phone}
+                          onChange={handleChange}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 2: STREET ADDRESS */}
+                    <div className="co-form-group">
+                      <label>STREET ADDRESS <span className="req">*</span></label>
+                      <input
+                        type="text"
+                        name="street_address"
+                        placeholder="House no, Building, Street, Area"
+                        value={form.street_address}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+
+                    {/* Row 3: CITY & STATE */}
+                    <div className="co-form-row">
+                      <div className="co-form-group">
+                        <label>CITY <span className="req">*</span></label>
+                        <input
+                          type="text"
+                          name="city"
+                          placeholder="City"
+                          value={form.city}
+                          onChange={handleChange}
+                          required
+                        />
+                      </div>
+                      <div className="co-form-group">
+                        <label>STATE <span className="req">*</span></label>
+                        <input
+                          type="text"
+                          name="state"
+                          placeholder="State"
+                          value={form.state}
+                          onChange={handleChange}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 4: COUNTRY & ADDRESS TYPE */}
+                    <div className="co-form-row">
+                      <div className="co-form-group">
+                        <label>COUNTRY <span className="req">*</span></label>
+                        <input
+                          type="text"
+                          name="country"
+                          placeholder="India"
+                          value={form.country || 'India'}
+                          onChange={handleChange}
+                          required
+                        />
+                      </div>
+                      <div className="co-form-group">
+                        <label>ADDRESS TYPE</label>
+                        <select
+                          name="address_type"
+                          value={form.address_type}
+                          onChange={handleChange}
+                          className="co-select"
+                        >
+                          <option value="Home">Home</option>
+                          <option value="Work">Work</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ORDER NOTES (OPTIONAL) */}
+                <div className="co-form-group" style={{ marginTop: '0.85rem' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    ORDER NOTES (OPTIONAL)
+                  </label>
                   <input
                     type="text"
                     name="order_notes"
