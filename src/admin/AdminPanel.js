@@ -22,7 +22,7 @@ import RatePanel from './rate/RatePanel';
 import RateTypePanel from './rate/RateTypePanel';
 import TestimonialPanel from './testimonial/TestimonialPanel';
 import SettingsPanel from './settings/SettingsPanel';
-import UserPanel from './user/UserPanel';
+import UserAddressPanel from './address/UserAddressPanel';
 import CartPanel from './cart/CartPanel';
 import OrderPanel from './orders/OrderPanel';
 import PaymentMethodPanel from './payment/PaymentMethodPanel';
@@ -103,7 +103,7 @@ const AdminPanel = ({ onClose }) => {
           Admin
         </div>
         <div className="admin-menu">
-          {['Dashboard', 'Orders', 'Payment Methods', 'Cart Items', 'Users', 'Products', 'Top Banners', 'Banners', 'Banner 2', 'Categories', 'Subcategories', 'Child Categories', 'Tags', 'Testimonials', 'Live Rates', 'Rate Types', 'Shop Details'].map((menu) => (
+          {['Dashboard', 'Orders', 'User Addresses', 'Users', 'Payment Methods', 'Cart Items', 'Products', 'Top Banners', 'Banners', 'Banner 2', 'Categories', 'Subcategories', 'Child Categories', 'Tags', 'Testimonials', 'Live Rates', 'Rate Types', 'Shop Details'].map((menu) => (
             <div
               key={menu}
               className={`admin-menu-item ${activeMenu === menu ? 'active' : ''}`}
@@ -166,10 +166,12 @@ const AdminPanel = ({ onClose }) => {
             <DashboardPanel />
           ) : activeMenu === 'Orders' ? (
             <OrderPanel />
+          ) : activeMenu === 'User Addresses' ? (
+            <UserAddressPanel />
           ) : activeMenu === 'Payment Methods' ? (
             <PaymentMethodPanel />
           ) : activeMenu === 'Users' ? (
-            <UserPanel />
+            <UserAddressPanel />
           ) : activeMenu === 'Cart Items' ? (
             <CartPanel />
           ) : activeMenu === 'Top Banners' ? (

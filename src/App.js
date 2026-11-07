@@ -143,7 +143,7 @@ function App() {
     return (
       <AdminPanel
         onClose={() => {
-          window.location.href = '/admin';
+          window.location.href = '/';
         }}
       />
     );

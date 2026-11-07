@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import './QuickViewModal.css';
 import { addToCartInSupabase } from '../services/cartService';
 import { parseSizeVariants } from '../utils/sizeStockHelper';
@@ -519,8 +520,32 @@ const QuickViewModal = ({ product, onClose, onAddToCart, liveRates = [] }) => {
 
 
 
-            {/* Action Buttons */}
-            {toastMsg && <div className="qv-toast-pill">{toastMsg}</div>}
+            {/* Top Floating Alert Toast */}
+            {toastMsg &&
+              createPortal(
+                <div className="qv-top-alert-toast">
+                  <div className="qv-toast-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <div className="qv-toast-content">
+                    <span className="qv-toast-title">Added to Cart!</span>
+                    <span className="qv-toast-desc">
+                      {product?.name ? `"${product.name}" added to your cart.` : 'Item added to your cart.'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="qv-toast-close-btn"
+                    onClick={() => setToastMsg('')}
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>,
+                document.body
+              )}
 
             <div className="qv-actions-row">
               <button

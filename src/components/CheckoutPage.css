@@ -243,6 +243,181 @@
   margin-top: 0.5rem;
 }
 
+/* User Address Dotted Box (matches reference design) */
+.co-address-dotted-box {
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 20px;
+  background: #ffffff;
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.co-address-dotted-box .co-form-group label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #334155;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.co-address-dotted-box input,
+.co-address-dotted-box select {
+  font-size: 0.9rem;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.co-address-dotted-box input:focus,
+.co-address-dotted-box select:focus {
+  border-color: #003B2F;
+  box-shadow: 0 0 0 3px rgba(0, 59, 47, 0.1);
+}
+
+/* Saved addresses list matching reference Image 2 */
+.co-saved-addresses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.co-saved-addr-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.co-saved-addr-card:hover {
+  border-color: #cbd5e1;
+  background: #fafafa;
+}
+
+.co-saved-addr-card.selected {
+  border: 2px solid #0f2744;
+  background: #ffffff;
+}
+
+.co-addr-radio-circle {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid #94a3b8;
+  border-radius: 50%;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  transition: all 0.2s;
+}
+
+.co-saved-addr-card.selected .co-addr-radio-circle,
+.co-add-new-addr-card.selected .co-addr-radio-circle {
+  border-color: #0f2744;
+}
+
+.co-addr-radio-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0f2744;
+}
+
+.co-saved-addr-body {
+  flex: 1;
+}
+
+.co-saved-addr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  gap: 10px;
+}
+
+.co-saved-addr-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.co-saved-addr-type-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.co-saved-addr-name {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.co-saved-addr-phone {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.co-saved-addr-location {
+  font-size: 0.88rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+/* + Add New Address Card matching reference Image 2 */
+.co-add-new-addr-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.co-add-new-addr-card:hover {
+  border-color: #cbd5e1;
+}
+
+.co-add-new-addr-card.selected {
+  border: 2px solid #0f2744;
+  background: #ffffff;
+}
+
+.co-add-new-addr-label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f2744;
+  letter-spacing: 0.5px;
+}
+
 .co-type-label {
   display: block;
   font-size: 0.85rem;

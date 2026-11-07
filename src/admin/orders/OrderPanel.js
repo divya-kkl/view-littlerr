@@ -289,7 +289,7 @@ const OrderPanel = () => {
                       </div>
                     </td>
 
-                    {/* Customer Info */}
+                    {/* Customer Info & Full Address */}
                     <td style={{ padding: '14px 16px' }}>
                       <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.92rem' }}>
                         {order.customer_name}
@@ -297,8 +297,13 @@ const OrderPanel = () => {
                       <div style={{ fontSize: '0.82rem', color: '#334155', marginTop: '2px' }}>
                         📞 {order.customer_phone || '—'}
                       </div>
-                      <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '1px' }}>
-                        📍 {order.city || ''}{order.pincode ? ` - ${order.pincode}` : ''}
+                      {order.street_address && (
+                        <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '3px', maxWidth: '240px', lineHeight: '1.3' }}>
+                          🏠 {order.street_address}
+                        </div>
+                      )}
+                      <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px' }}>
+                        📍 {order.city || ''}{order.state ? `, ${order.state}` : ''}{order.pincode ? ` - ${order.pincode}` : ''}
                       </div>
                     </td>
 
