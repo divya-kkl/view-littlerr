@@ -984,6 +984,24 @@ const CheckoutPage = ({ siteSettings }) => {
                     );
                   })}
                 </div>
+
+                {/* Mobile / Responsive: Place Order Button directly below Payment Methods */}
+                <div className="co-mobile-bottom-action">
+                  <button
+                    type="submit"
+                    className="co-btn-submit-order"
+                    disabled={isSubmitting || cart.length === 0}
+                  >
+                    {isSubmitting ? (
+                      <span className="co-btn-loading">
+                        <span className="co-btn-spinner"></span>
+                        Placing Your Order...
+                      </span>
+                    ) : (
+                      <span>🔒 Place Order • ₹{totalAmount.toLocaleString('en-IN')}</span>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1061,10 +1079,10 @@ const CheckoutPage = ({ siteSettings }) => {
                   <span className="co-tax-note">✓ Inclusive of all taxes</span>
                 </div>
 
-                {/* Place Order CTA Button */}
+                {/* Place Order CTA Button (Desktop only; hidden on mobile) */}
                 <button
                   type="submit"
-                  className="co-btn-submit-order"
+                  className="co-btn-submit-order co-btn-desktop-only"
                   disabled={isSubmitting || cart.length === 0}
                 >
                   {isSubmitting ? (
