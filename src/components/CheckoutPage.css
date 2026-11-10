@@ -830,6 +830,11 @@
   to { transform: rotate(360deg); }
 }
 
+/* Mobile only bottom place order action bar (hidden on desktop) */
+.co-mobile-bottom-action {
+  display: none;
+}
+
 /* Trust Badges in Summary */
 .co-trust-box {
   margin-top: 1.5rem;
@@ -1145,11 +1150,34 @@
   }
 
   .co-right-col {
-    order: -1; /* Show summary on top on mobile/tablet or keep sticky */
+    order: -1; /* Keep order summary on top on mobile */
+    margin-bottom: 1.5rem;
   }
 
   .co-summary-sticky {
     position: static;
+  }
+
+  /* Hide the Place Order button inside the top summary on mobile */
+  .co-btn-desktop-only {
+    display: none !important;
+  }
+
+  /* Show the Place Order button directly below Payment Method options on mobile */
+  .co-mobile-bottom-action {
+    display: block;
+    margin-top: 1.25rem;
+    width: 100%;
+  }
+
+  .co-mobile-bottom-action .co-btn-submit-order {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(0, 59, 47, 0.25);
   }
 
   .co-header-bar {
