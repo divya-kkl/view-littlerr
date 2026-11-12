@@ -791,3 +791,55 @@
     font-size: 0.72rem;
   }
 }
+
+/* Floating Wishlist Heart Icon on Product Cards */
+.wishlist-heart-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 5;
+  color: #003B2F;
+}
+
+.wishlist-heart-btn:hover {
+  background: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(225, 29, 72, 0.25);
+  border-color: #e11d48;
+  color: #e11d48;
+}
+
+.wishlist-heart-btn.in-wishlist {
+  background: #ffffff;
+  border-color: #e11d48;
+  color: #e11d48;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.3);
+}
+
+.wishlist-heart-btn:active {
+  transform: scale(0.92);
+}
+
+@media (max-width: 640px) {
+  .wishlist-heart-btn {
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+  }
+  .wishlist-heart-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+}

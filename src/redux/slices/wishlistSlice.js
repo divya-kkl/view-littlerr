@@ -23,11 +23,15 @@ const wishlistSlice = createSlice({
     items: loadWishlistFromStorage(),
   },
   reducers: {
+    setWishlist: (state, action) => {
+      state.items = action.payload || [];
+      saveWishlistToStorage(state.items);
+    },
     toggleWishlist: (state, action) => {
       const product = action.payload;
-      const id = product.dbId || product.id || product.name;
+      const id = String(product.dbId || product.id || product.productCode || product.name);
       const index = state.items.findIndex(
-        (w) => (w.dbId || w.id || w.name) === id
+        (w) => String(w.dbId || w.id || w.product_id || w.name) === id
       );
 
       if (index >= 0) {
@@ -39,9 +43,9 @@ const wishlistSlice = createSlice({
     },
     addToWishlist: (state, action) => {
       const product = action.payload;
-      const id = product.dbId || product.id || product.name;
+      const id = String(product.dbId || product.id || product.productCode || product.name);
       const exists = state.items.some(
-        (w) => (w.dbId || w.id || w.name) === id
+        (w) => String(w.dbId || w.id || w.product_id || w.name) === id
       );
       if (!exists) {
         state.items.push(product);
@@ -49,9 +53,9 @@ const wishlistSlice = createSlice({
       }
     },
     removeFromWishlist: (state, action) => {
-      const id = action.payload;
+      const id = String(action.payload);
       state.items = state.items.filter(
-        (w) => (w.dbId || w.id || w.name) !== id
+        (w) => String(w.dbId || w.id || w.product_id || w.name) !== id
       );
       saveWishlistToStorage(state.items);
     },
@@ -62,5 +66,5 @@ const wishlistSlice = createSlice({
   },
 });
 
-export const { toggleWishlist, addToWishlist, removeFromWishlist, clearWishlist } = wishlistSlice.actions;
+export const { setWishlist, toggleWishlist, addToWishlist, removeFromWishlist, clearWishlist } = wishlistSlice.actions;
 export default wishlistSlice.reducer;

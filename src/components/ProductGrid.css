@@ -140,10 +140,10 @@
 
 .wishlist-heart-btn {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  background: #FFFFFF;
-  border: none;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(212, 175, 55, 0.35);
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -151,13 +151,29 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: var(--transition);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  z-index: 5;
+  color: #003B2F;
 }
 
 .wishlist-heart-btn:hover {
-  background: #f0f0f0;
-  transform: scale(1.1);
+  background: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(225, 29, 72, 0.25);
+  border-color: #e11d48;
+  color: #e11d48;
+}
+
+.wishlist-heart-btn.in-wishlist {
+  background: #ffffff;
+  border-color: #e11d48;
+  color: #e11d48;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.3);
+}
+
+.wishlist-heart-btn:active {
+  transform: scale(0.92);
 }
 
 .quick-view-hover-btn {

@@ -81,10 +81,45 @@ export const createOrderInSupabase = async (orderPayload) => {
 
     if (error) throw error;
 
-    // After placing order, clear active cart in Supabase & localStorage
+    // After placing order, remove ONLY the ordered items from active cart in Supabase & localStorage
     try {
-      await clearCartInSupabase();
-      localStorage.removeItem('luxury_jewel_cart');
+      const orderedItemIds = Array.isArray(orderPayload.items)
+        ? orderPayload.items.map(it => it.id).filter(Boolean)
+        : [];
+      const orderedProductIds = Array.isArray(orderPayload.items)
+        ? orderPayload.items.map(it => it.product_id).filter(Boolean)
+        : [];
+
+      if (orderedItemIds.length > 0) {
+        // Delete only the items that were ordered
+        await supabase
+          .from('cart_items')
+          .delete()
+          .in('id', orderedItemIds);
+      } else {
+        await clearCartInSupabase();
+      }
+
+      // Update local storage cart: keep any items that were NOT ordered
+      try {
+        const localSaved = localStorage.getItem('luxury_jewel_cart');
+        if (localSaved) {
+          const parsed = JSON.parse(localSaved);
+          if (Array.isArray(parsed)) {
+            const remaining = parsed.filter(item =>
+              !orderedItemIds.includes(item.id) && !orderedProductIds.includes(item.product_id || item.id)
+            );
+            if (remaining.length > 0) {
+              localStorage.setItem('luxury_jewel_cart', JSON.stringify(remaining));
+            } else {
+              localStorage.removeItem('luxury_jewel_cart');
+            }
+          }
+        }
+      } catch (localErr) {
+        console.warn('Error updating local cart:', localErr);
+      }
+
       localStorage.removeItem('sv_cart_items');
       window.dispatchEvent(new Event('cartUpdated'));
 
@@ -94,7 +129,7 @@ export const createOrderInSupabase = async (orderPayload) => {
       const updatedList = [confirmedOrder, ...currentOrders.filter(o => o.order_number !== confirmedOrder.order_number)];
       localStorage.setItem('sv_my_orders', JSON.stringify(updatedList));
     } catch (clearErr) {
-      console.warn('Could not clear cart after order:', clearErr);
+      console.warn('Could not clear ordered items after order:', clearErr);
     }
 
     return { success: true, order: data || record };

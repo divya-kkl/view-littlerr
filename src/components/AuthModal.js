@@ -128,17 +128,19 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
     });
 
     if (res.success) {
-      if (res.session) {
-        setCurrentUser(res.user);
-        setActiveTab('profile');
-        if (onAuthChange) onAuthChange(res.user);
-        const redirected = await handlePostAuthAction();
-        if (redirected) return;
-      } else {
-        setSuccessMsg('Account created successfully! You can now sign in.');
-        setActiveTab('login');
-        setLoginEmail(regEmail);
+      // After creating account, always switch to the Sign In (login) tab
+      try {
+        await logoutUser();
+      } catch (err) {
+        console.warn('Error clearing auto session on signup in modal:', err);
       }
+      setCurrentUser(null);
+      if (onAuthChange) onAuthChange(null);
+      setSuccessMsg('Account created successfully! Please sign in with your email and password.');
+      setActiveTab('login');
+      setLoginEmail(regEmail);
+      setLoginPassword('');
+      setRegPassword('');
     } else {
       setErrorMsg(res.error || 'Registration failed. Please try again.');
     }

@@ -594,6 +594,29 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 650px;
+  overflow-y: auto;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #D4AF37 #f1f5f9;
+}
+
+.user-orders-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.user-orders-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.user-orders-list::-webkit-scrollbar-thumb {
+  background: #D4AF37;
+  border-radius: 4px;
+}
+
+.user-orders-list::-webkit-scrollbar-thumb:hover {
+  background: #b8860b;
 }
 
 .user-single-order-card {
@@ -647,6 +670,29 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px 0;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.5) #f8fafc;
+}
+
+.user-order-items-wrapper::-webkit-scrollbar {
+  width: 5px;
+}
+
+.user-order-items-wrapper::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 4px;
+}
+
+.user-order-items-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.45);
+  border-radius: 4px;
+}
+
+.user-order-items-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
 }
 
 .user-order-item-box {

@@ -1086,6 +1086,8 @@
   box-shadow: none !important;
   -webkit-tap-highlight-color: transparent;
   text-align: left;
+  display: inline-flex;
+  align-items: center;
   color: #FFFFFF !important;
   font-size: 0.95rem;
   font-weight: 600;
@@ -1685,19 +1687,25 @@
 
   .vj-mobile-menu-btn {
     flex-shrink: 0;
-    padding: 4px;
-    width: 32px;
-    height: 32px;
+    padding: 6px;
+    width: 45px;
+    height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #D4AF37;
     margin: 0;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+  }
+
+  .vj-mobile-menu-btn:hover {
+    background: rgba(212, 175, 55, 0.12);
   }
 
   .vj-mobile-menu-btn svg {
-    width: 21px;
-    height: 21px;
+    width: 26px;
+    height: 26px;
   }
 
   .vj-brand-wrapper {
@@ -1718,16 +1726,16 @@
   }
 
   .vj-shop-logo-img {
-    height: 30px;
-    max-height: 30px;
-    max-width: 32px;
+    height: 34px;
+    max-height: 34px;
+    max-width: 38px;
     border-radius: 4px;
     flex-shrink: 0;
     object-fit: contain;
   }
 
   .vj-shop-brand-name {
-    font-size: 0.95rem;
+    font-size: 0.98rem;
     font-weight: 800;
     letter-spacing: 0.4px;
     white-space: nowrap;
@@ -1745,19 +1753,20 @@
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
 
   .vj-luxury-navbar.vj-scrolled .vj-search-icon-btn {
     margin-right: 0 !important;
   }
 
+  .vj-wishlist-btn,
   .vj-cart-btn,
   .vj-profile-btn,
   .vj-search-icon-btn {
-    padding: 4px;
-    width: 34px;
-    height: 34px;
+    padding: 6px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
@@ -1766,19 +1775,20 @@
     border-radius: 50%;
   }
 
+  .vj-wishlist-btn svg,
   .vj-cart-btn svg,
   .vj-profile-btn svg,
   .vj-search-icon-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 25px;
+    height: 25px;
   }
 }
 
 @media (max-width: 480px) {
   .vj-nav-container {
-    padding: 0 8px;
+    padding: 0 10px;
     gap: 6px;
-    height: 52px;
+    height: 56px;
   }
 
   .vj-brand-identity {
@@ -1786,84 +1796,106 @@
   }
 
   .vj-shop-logo-img {
-    height: 28px;
-    max-height: 28px;
-    max-width: 30px;
+    height: 30px;
+    max-height: 30px;
+    max-width: 32px;
   }
 
   .vj-shop-brand-name {
-    font-size: 0.88rem;
+    font-size: 0.92rem;
     letter-spacing: 0.3px;
+  }
+
+  .vj-mobile-menu-btn {
+    width: 38px;
+    height: 38px;
+    padding: 5px;
+  }
+
+  .vj-mobile-menu-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .vj-right-actions {
+    gap: 4px;
+  }
+
+  .vj-wishlist-btn,
+  .vj-cart-btn,
+  .vj-profile-btn,
+  .vj-search-icon-btn {
+    width: 38px;
+    height: 38px;
+    padding: 5px;
+  }
+
+  .vj-wishlist-btn svg,
+  .vj-cart-btn svg,
+  .vj-profile-btn svg,
+  .vj-search-icon-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  .vj-nav-container {
+    padding: 0 8px;
+    gap: 4px;
+    height: 54px;
+  }
+
+  .vj-brand-identity {
+    gap: 4px;
+  }
+
+  .vj-shop-logo-img {
+    height: 26px;
+    max-width: 28px;
+  }
+
+  .vj-shop-brand-name {
+    font-size: 0.85rem;
+    letter-spacing: 0.2px;
+  }
+
+  .vj-mobile-menu-btn {
+    width: 35px;
+    height: 35px;
+    padding: 4px;
+  }
+
+  .vj-mobile-menu-btn svg {
+    width: 22px;
+    height: 22px;
   }
 
   .vj-right-actions {
     gap: 2px;
   }
 
+  .vj-wishlist-btn,
   .vj-cart-btn,
   .vj-profile-btn,
   .vj-search-icon-btn {
-    width: 32px;
-    height: 32px;
-    padding: 3px;
+    width: 35px;
+    height: 35px;
+    padding: 4px;
   }
 
+  .vj-wishlist-btn svg,
   .vj-cart-btn svg,
   .vj-profile-btn svg,
   .vj-search-icon-btn svg {
-    width: 18px;
-    height: 18px;
-  }
-}
-
-@media (max-width: 360px) {
-  .vj-nav-container {
-    padding: 0 6px;
-    gap: 4px;
-  }
-
-  .vj-brand-identity {
-    gap: 4px;
-  }
-
-  .vj-shop-logo-img {
-    height: 24px;
-    max-width: 26px;
-  }
-
-  .vj-shop-brand-name {
-    font-size: 0.80rem;
-    letter-spacing: 0.2px;
-  }
-
-  .vj-mobile-menu-btn {
-    width: 28px;
-    height: 28px;
-  }
-
-  .vj-mobile-menu-btn svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .vj-cart-btn,
-  .vj-profile-btn,
-  .vj-search-icon-btn {
-    width: 29px;
-    height: 29px;
-    padding: 2px;
-  }
-
-  .vj-cart-btn svg,
-  .vj-profile-btn svg,
-  .vj-search-icon-btn svg {
-    width: 17px;
-    height: 17px;
+    width: 22px;
+    height: 22px;
   }
 }
 
 
-/* Navbar Cart & Profile Buttons */
+/* Navbar Wishlist, Cart & Profile Buttons */
+.vj-wishlist-btn,
 .vj-cart-btn,
 .vj-profile-btn {
   background: none;
@@ -1879,12 +1911,14 @@
   transition: transform 0.2s, background-color 0.2s;
 }
 
+.vj-wishlist-btn:hover,
 .vj-cart-btn:hover,
 .vj-profile-btn:hover {
   transform: scale(1.08);
   background: rgba(212, 175, 55, 0.15);
 }
 
+.vj-wishlist-count-badge,
 .vj-cart-count-badge {
   position: absolute;
   top: 1px;
