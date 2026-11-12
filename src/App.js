@@ -29,7 +29,7 @@ import { getTagsFromSupabase } from './services/tagService';
 import { fetchWishlistFromSupabase, addToWishlistInSupabase, removeFromWishlistInSupabase } from './services/wishlistService';
 import { supabase } from './supabaseClient';
 import { useDispatch, useSelector } from 'react-redux';
-import { setWishlist, addToWishlist, removeFromWishlist, toggleWishlist } from './redux/slices/wishlistSlice';
+import { setWishlist, addToWishlist, removeFromWishlist } from './redux/slices/wishlistSlice';
 import { setLiveRates } from './redux/slices/ratesSlice';
 
 function App() {

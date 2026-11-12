@@ -4,10 +4,9 @@ import './WishlistPage.css';
 import { addToCartInSupabase } from '../services/cartService';
 import {
   fetchWishlistFromSupabase,
-  removeFromWishlistInSupabase,
-  clearWishlistInSupabase
+  removeFromWishlistInSupabase
 } from '../services/wishlistService';
-import { removeFromWishlist, clearWishlist, setWishlist } from '../redux/slices/wishlistSlice';
+import { removeFromWishlist, setWishlist } from '../redux/slices/wishlistSlice';
 import { getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
 
 const WISHLIST_KEY = 'wishlist';
