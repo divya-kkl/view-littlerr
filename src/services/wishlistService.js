@@ -29,13 +29,103 @@ export const getWishlistAuthUser = async () => {
 };
 
 /**
- * Fetch all items from wishlist_items table for current session / user
- * Ensures items are NEVER wiped out on page refresh.
+ * Extract canonical product identifier (product_id, dbId, id, code, or name)
+ */
+export const getProductCanonicalId = (p) => {
+  if (!p) return '';
+  if (typeof p === 'string' || typeof p === 'number') return String(p).trim();
+  return String(p.product_id || p.dbId || p.id || p.productCode || p.name || '').trim();
+};
+
+/**
+ * Robust check if a wishlist item matches a given target ID or target Name
+ */
+export const matchesWishlistItem = (item, targetId, targetName) => {
+  if (!item) return false;
+  const tId = String(targetId || '').trim().toLowerCase();
+  const tName = String(targetName || '').trim().toLowerCase();
+
+  const itemId = String(item.product_id || item.dbId || item.id || item.productCode || '').trim().toLowerCase();
+  const itemName = String(item.name || item.product_name || '').trim().toLowerCase();
+
+  if (tId && itemId && tId === itemId) return true;
+  if (tName && itemName && tName === itemName) return true;
+  if (tId && itemName && tId === itemName) return true;
+  if (tName && itemId && tName === itemId) return true;
+  return false;
+};
+
+/**
+ * Deduplicate wishlist array so each product appears at most once
+ */
+export const deduplicateWishlist = (items) => {
+  if (!Array.isArray(items)) return [];
+  const seenKeys = new Set();
+  const unique = [];
+
+  for (const item of items) {
+    if (!item) continue;
+    const prodId = getProductCanonicalId(item).toLowerCase();
+    const prodName = String(item.name || item.product_name || '').trim().toLowerCase();
+    const key = prodId || prodName;
+
+    if (key && !seenKeys.has(key)) {
+      seenKeys.add(key);
+      if (prodName) seenKeys.add(prodName);
+      unique.push(item);
+    }
+  }
+  return unique;
+};
+
+/**
+ * Helper to silently sync a single item to Supabase WITHOUT dispatching events (prevents infinite loops)
+ */
+const syncRowToSupabaseSilently = async (item, user, sessionId) => {
+  try {
+    const userId = user?.id || null;
+    const prodId = getProductCanonicalId(item);
+    const prodName = item.name || item.product_name || 'Jewellery Item';
+    const prodImg = item.image || (item.images && item.images[0]) || item.product_image || '';
+    const prodPrice = Number(item.sellingPrice || item.price) || 0;
+    const prodWeight = parseFloat(item.weight || item.netWeight || item.grossWeight) || 0;
+    const prodPurity = item.purity || '22K Gold';
+    const prodCategory = item.category || item.categoryName || '';
+
+    const basePayload = {
+      user_id: userId,
+      session_id: sessionId,
+      product_id: prodId,
+      product_name: prodName,
+      product_image: prodImg,
+      category: prodCategory,
+      updated_at: new Date().toISOString()
+    };
+
+    const fullPayload = {
+      ...basePayload,
+      price: prodPrice,
+      weight: prodWeight,
+      purity: prodPurity
+    };
+
+    const { error: fullError } = await supabase.from('wishlist_items').insert([fullPayload]);
+    if (fullError) {
+      await supabase.from('wishlist_items').insert([basePayload]);
+    }
+  } catch (e) {
+    // Silent catch
+  }
+};
+
+/**
+ * Fetch all items from wishlist_items table for current session / user.
+ * Deduplicates both Supabase and localStorage rows to guarantee no runaway counts.
  */
 export const fetchWishlistFromSupabase = async () => {
   let localSaved = [];
   try {
-    localSaved = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
+    localSaved = deduplicateWishlist(JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]'));
   } catch (e) {
     localSaved = [];
   }
@@ -59,28 +149,25 @@ export const fetchWishlistFromSupabase = async () => {
       return { success: true, wishlist: localSaved };
     }
 
-    // If Supabase returned 0 items but localStorage has saved items, preserve and sync them up!
-    if ((!data || data.length === 0) && localSaved && localSaved.length > 0) {
-      for (const item of localSaved) {
-        addToWishlistInSupabase(item).catch(() => {});
-      }
-      return { success: true, wishlist: localSaved };
-    }
-
-    // Merge Supabase rows and localStorage items so nothing is lost
+    // Merge Supabase rows and localStorage items into a strictly unique set
     const seen = new Set();
     const merged = [];
 
     for (const row of (data || [])) {
-      const pid = String(row.product_id || row.id);
-      if (!seen.has(pid)) {
-        seen.add(pid);
-        const localMatch = localSaved.find(it => String(it.id || it.dbId || it.product_id || it.name) === pid) || {};
+      const pid = String(row.product_id || row.id || '').trim();
+      const pname = String(row.product_name || '').trim().toLowerCase();
+      const canonicalKey = (pid || pname).toLowerCase();
+
+      if (!seen.has(canonicalKey)) {
+        seen.add(canonicalKey);
+        if (pname) seen.add(pname);
+
+        const localMatch = localSaved.find(it => matchesWishlistItem(it, pid, pname)) || {};
         merged.push({
-          id: row.id,
-          product_id: row.product_id,
-          dbId: row.product_id,
-          name: row.product_name,
+          id: pid,
+          product_id: pid,
+          dbId: pid,
+          name: row.product_name || localMatch.name || 'Jewellery Item',
           image: row.product_image || localMatch.image || '',
           price: Number(row.price || localMatch.price || localMatch.sellingPrice) || 0,
           weight: row.weight || localMatch.weight || 0,
@@ -90,22 +177,28 @@ export const fetchWishlistFromSupabase = async () => {
       }
     }
 
-    // If there are any local items not yet in Supabase, preserve them and sync to Supabase
+    // If there are any local items not yet in Supabase, preserve them and sync silently
     for (const it of localSaved) {
-      const pid = String(it.id || it.dbId || it.product_id || it.name);
-      if (!seen.has(pid)) {
-        seen.add(pid);
+      const pid = getProductCanonicalId(it).toLowerCase();
+      const pname = String(it.name || it.product_name || '').trim().toLowerCase();
+      const canonicalKey = pid || pname;
+
+      if (!seen.has(canonicalKey)) {
+        seen.add(canonicalKey);
+        if (pname) seen.add(pname);
         merged.push(it);
-        addToWishlistInSupabase(it).catch(() => {});
+        syncRowToSupabaseSilently(it, user, sessionId).catch(() => {});
       }
     }
 
-    // Persist to local storage
+    const finalWishlist = deduplicateWishlist(merged);
+
+    // Persist clean deduplicated list to local storage
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(finalWishlist));
     } catch (e) {}
 
-    return { success: true, wishlist: merged };
+    return { success: true, wishlist: finalWishlist };
   } catch (err) {
     console.warn('Error fetching wishlist, fallback to local storage:', err);
     return { success: true, wishlist: localSaved };
@@ -114,10 +207,9 @@ export const fetchWishlistFromSupabase = async () => {
 
 /**
  * Add product to wishlist (Supabase + localStorage)
- * Automatically adapts to table schema whether price/weight/purity columns exist or not.
  */
 export const addToWishlistInSupabase = async (product) => {
-  const prodId = String(product.dbId || product.id || product.productCode || product.name);
+  const prodId = getProductCanonicalId(product);
   const prodName = product.name || product.product_name || 'Jewellery Item';
   const prodImg = product.image || (product.images && product.images[0]) || product.product_image || '';
   const prodPrice = Number(product.sellingPrice || product.price) || 0;
@@ -137,12 +229,12 @@ export const addToWishlistInSupabase = async (product) => {
     category: prodCategory
   };
 
-  // 1. Update localStorage instantly
+  // 1. Update localStorage instantly & deduplicate
   try {
     const local = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
-    const filtered = local.filter(it => String(it.id || it.dbId || it.product_id || it.name) !== prodId);
+    const filtered = local.filter(it => !matchesWishlistItem(it, prodId, prodName));
     filtered.unshift(itemObj);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(deduplicateWishlist(filtered)));
   } catch (e) {}
 
   window.dispatchEvent(new Event('wishlistUpdated'));
@@ -153,8 +245,14 @@ export const addToWishlistInSupabase = async (product) => {
     const sessionId = getWishlistSessionId();
     const userId = user?.id || null;
 
-    // Delete existing duplicate if any
-    let delQuery = supabase.from('wishlist_items').delete().eq('product_id', prodId);
+    // Delete existing duplicate for this item if any
+    let delQuery = supabase.from('wishlist_items').delete();
+    if (prodName && prodId && prodName !== prodId) {
+      delQuery = delQuery.or(`product_id.eq.${prodId},product_name.eq.${prodName}`);
+    } else {
+      delQuery = delQuery.eq('product_id', prodId);
+    }
+
     if (userId) {
       delQuery = delQuery.or(`user_id.eq.${userId},session_id.eq.${sessionId}`);
     } else {
@@ -162,7 +260,7 @@ export const addToWishlistInSupabase = async (product) => {
     }
     await delQuery;
 
-    // Base payload exactly matching the user's current table schema
+    // Insert payload
     const basePayload = {
       user_id: userId,
       session_id: sessionId,
@@ -173,7 +271,6 @@ export const addToWishlistInSupabase = async (product) => {
       updated_at: new Date().toISOString()
     };
 
-    // Try full payload with price/weight/purity first
     const fullPayload = {
       ...basePayload,
       price: prodPrice,
@@ -183,7 +280,6 @@ export const addToWishlistInSupabase = async (product) => {
 
     const { error: fullError } = await supabase.from('wishlist_items').insert([fullPayload]);
     if (fullError) {
-      // If price/weight/purity columns don't exist yet, insert with base payload
       const { error: baseError } = await supabase.from('wishlist_items').insert([basePayload]);
       if (baseError) {
         console.error('Supabase wishlist insert error:', baseError.message);
@@ -198,18 +294,22 @@ export const addToWishlistInSupabase = async (product) => {
 
 /**
  * Remove product from wishlist (Supabase + localStorage)
+ * Handles both product object or string identifier, ensuring clean deletion.
  */
-export const removeFromWishlistInSupabase = async (productId) => {
-  const prodId = String(productId);
+export const removeFromWishlistInSupabase = async (productOrId) => {
+  const prodId = typeof productOrId === 'object'
+    ? getProductCanonicalId(productOrId)
+    : String(productOrId || '').trim();
+  const prodName = typeof productOrId === 'object'
+    ? String(productOrId.name || productOrId.product_name || '').trim()
+    : '';
 
-  // 1. Update localStorage
+  // 1. Immediately delete from localStorage
   try {
     const local = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
-    const updated = local.filter(it => String(it.id || it.dbId || it.product_id || it.name) !== prodId);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+    const updated = local.filter(it => !matchesWishlistItem(it, prodId, prodName));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(deduplicateWishlist(updated)));
   } catch (e) {}
-
-  window.dispatchEvent(new Event('wishlistUpdated'));
 
   // 2. Delete from Supabase
   try {
@@ -217,7 +317,13 @@ export const removeFromWishlistInSupabase = async (productId) => {
     const sessionId = getWishlistSessionId();
     const userId = user?.id || null;
 
-    let query = supabase.from('wishlist_items').delete().eq('product_id', prodId);
+    let query = supabase.from('wishlist_items').delete();
+    if (prodId && prodName && prodId !== prodName) {
+      query = query.or(`product_id.eq.${prodId},product_name.eq.${prodName}`);
+    } else if (prodId) {
+      query = query.or(`product_id.eq.${prodId},product_name.eq.${prodId}`);
+    }
+
     if (userId) {
       query = query.or(`user_id.eq.${userId},session_id.eq.${sessionId}`);
     } else {
@@ -225,8 +331,11 @@ export const removeFromWishlistInSupabase = async (productId) => {
     }
     await query;
   } catch (err) {
-    console.warn('Supabase wishlist delete skipped/failed:', err);
+    console.warn('Supabase wishlist delete error:', err);
   }
+
+  // 3. Dispatch event after local and remote deletion are executed
+  window.dispatchEvent(new Event('wishlistUpdated'));
 
   return { success: true };
 };
@@ -256,7 +365,7 @@ export const clearWishlistInSupabase = async () => {
     }
     await query;
   } catch (err) {
-    console.warn('Supabase wishlist clear failed:', err);
+    console.warn('Supabase wishlist clear error:', err);
   }
 
   return { success: true };
@@ -266,16 +375,18 @@ export const clearWishlistInSupabase = async () => {
  * Toggle Wishlist item in Supabase + localStorage
  */
 export const toggleWishlistInSupabase = async (product) => {
-  const prodId = String(product.dbId || product.id || product.productCode || product.name);
+  const prodId = getProductCanonicalId(product);
+  const prodName = product.name || product.product_name || '';
+
   let local = [];
   try {
     local = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
   } catch (e) {}
 
-  const exists = local.some(it => String(it.id || it.dbId || it.product_id || it.name) === prodId);
+  const exists = local.some(it => matchesWishlistItem(it, prodId, prodName));
 
   if (exists) {
-    await removeFromWishlistInSupabase(prodId);
+    await removeFromWishlistInSupabase(product);
     return { inWishlist: false };
   } else {
     await addToWishlistInSupabase(product);

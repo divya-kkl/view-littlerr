@@ -1,9 +1,40 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+const deduplicateItems = (list) => {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  const unique = [];
+  for (const item of list) {
+    if (!item) continue;
+    const key = (
+      String(item.product_id || item.dbId || item.id || item.productCode || '').trim().toLowerCase() ||
+      String(item.name || item.product_name || '').trim().toLowerCase()
+    );
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      unique.push(item);
+    }
+  }
+  return unique;
+};
+
+const matchesProduct = (w, targetId) => {
+  const target = String(targetId || '').trim().toLowerCase();
+  if (!target) return false;
+  return (
+    String(w.product_id || '').trim().toLowerCase() === target ||
+    String(w.dbId || '').trim().toLowerCase() === target ||
+    String(w.id || '').trim().toLowerCase() === target ||
+    String(w.name || '').trim().toLowerCase() === target ||
+    String(w.product_name || '').trim().toLowerCase() === target ||
+    String(w.productCode || '').trim().toLowerCase() === target
+  );
+};
+
 const loadWishlistFromStorage = () => {
   try {
     const saved = localStorage.getItem('wishlist');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? deduplicateItems(JSON.parse(saved)) : [];
   } catch (e) {
     return [];
   }
@@ -11,7 +42,8 @@ const loadWishlistFromStorage = () => {
 
 const saveWishlistToStorage = (items) => {
   try {
-    localStorage.setItem('wishlist', JSON.stringify(items));
+    const unique = deduplicateItems(items);
+    localStorage.setItem('wishlist', JSON.stringify(unique));
   } catch (e) {
     console.error('Failed to save wishlist to localStorage:', e);
   }
@@ -24,14 +56,16 @@ const wishlistSlice = createSlice({
   },
   reducers: {
     setWishlist: (state, action) => {
-      state.items = action.payload || [];
+      state.items = deduplicateItems(action.payload || []);
       saveWishlistToStorage(state.items);
     },
     toggleWishlist: (state, action) => {
       const product = action.payload;
-      const id = String(product.dbId || product.id || product.productCode || product.name);
+      const id = String(product.product_id || product.dbId || product.id || product.productCode || product.name || '');
+      const prodName = product.name || product.product_name || '';
+
       const index = state.items.findIndex(
-        (w) => String(w.dbId || w.id || w.product_id || w.name) === id
+        (w) => matchesProduct(w, id) || (prodName && matchesProduct(w, prodName))
       );
 
       if (index >= 0) {
@@ -39,24 +73,26 @@ const wishlistSlice = createSlice({
       } else {
         state.items.push(product);
       }
+      state.items = deduplicateItems(state.items);
       saveWishlistToStorage(state.items);
     },
     addToWishlist: (state, action) => {
       const product = action.payload;
-      const id = String(product.dbId || product.id || product.productCode || product.name);
+      const id = String(product.product_id || product.dbId || product.id || product.productCode || product.name || '');
+      const prodName = product.name || product.product_name || '';
+
       const exists = state.items.some(
-        (w) => String(w.dbId || w.id || w.product_id || w.name) === id
+        (w) => matchesProduct(w, id) || (prodName && matchesProduct(w, prodName))
       );
       if (!exists) {
         state.items.push(product);
+        state.items = deduplicateItems(state.items);
         saveWishlistToStorage(state.items);
       }
     },
     removeFromWishlist: (state, action) => {
-      const id = String(action.payload);
-      state.items = state.items.filter(
-        (w) => String(w.dbId || w.id || w.product_id || w.name) !== id
-      );
+      const id = String(action.payload || '');
+      state.items = state.items.filter((w) => !matchesProduct(w, id));
       saveWishlistToStorage(state.items);
     },
     clearWishlist: (state) => {
