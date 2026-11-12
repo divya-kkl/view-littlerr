@@ -6,6 +6,13 @@ import {
   removeCartItemFromSupabase,
   clearCartInSupabase
 } from '../services/cartService';
+import {
+  AVAILABLE_COUPONS,
+  validateCoupon,
+  getStoredCoupon,
+  saveStoredCoupon,
+  removeStoredCoupon
+} from '../services/couponService';
 
 const CartPage = () => {
   const [cart, setCart] = useState([]);
@@ -103,9 +110,54 @@ const CartPage = () => {
     }
   };
 
-  const totalItemsCount = cart.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0);
   const subtotal = cart.reduce((acc, item) => acc + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
-  const grandTotal = subtotal;
+
+  // Coupon State
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(() => getStoredCoupon());
+  const [couponFeedback, setCouponFeedback] = useState({ type: '', text: '' });
+  const [showOffers, setShowOffers] = useState(false);
+
+  // Re-validate applied coupon whenever subtotal changes
+  useEffect(() => {
+    if (appliedCoupon && subtotal > 0) {
+      const res = validateCoupon(appliedCoupon.code, subtotal);
+      if (res.success) {
+        setAppliedCoupon(res.coupon);
+        saveStoredCoupon(res.coupon);
+      } else {
+        setAppliedCoupon(null);
+        removeStoredCoupon();
+        setCouponFeedback({ type: 'error', text: res.message });
+      }
+    } else if (subtotal === 0 && appliedCoupon) {
+      setAppliedCoupon(null);
+      removeStoredCoupon();
+    }
+  }, [subtotal, appliedCoupon]);
+
+  const discountAmount = appliedCoupon?.discountAmount || 0;
+  const grandTotal = Math.max(0, subtotal - discountAmount);
+
+  const handleApplyCoupon = (codeToApply) => {
+    const code = codeToApply || couponInput;
+    const res = validateCoupon(code, subtotal);
+    if (res.success) {
+      setAppliedCoupon(res.coupon);
+      saveStoredCoupon(res.coupon);
+      setCouponInput('');
+      setCouponFeedback({ type: 'success', text: res.message });
+    } else {
+      setCouponFeedback({ type: 'error', text: res.message });
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    removeStoredCoupon();
+    setCouponInput('');
+    setCouponFeedback({ type: 'info', text: 'Coupon removed.' });
+  };
 
   // 1. Shimmer Loading Skeleton Screen
   if (isLoading) {
@@ -180,44 +232,39 @@ const CartPage = () => {
   return (
     <div className="cart-page-wrapper">
       <div className="cart-page-container">
-        {/* Breadcrumb Header */}
-        <div className="cart-page-header">
-          <div>
-            <div className="cart-breadcrumbs">
-              <a href="/">Home</a>
-              <span>/</span>
-              <span className="cart-bread-current">Shopping Cart</span>
-            </div>
-            <h1 className="cart-page-title">
-              Shopping Cart <span className="cart-title-count">({totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'})</span>
-            </h1>
+        {/* Centered Header */}
+        <div className="cart-header-centered">
+          <div className="cart-breadcrumbs-centered">
+            <a href="/">Home</a> <span>•</span> <span>Your Shopping Cart</span>
           </div>
-          <button
-            type="button"
-            className="cart-btn-clear"
-            onClick={handleClearCart}
-            disabled={isUpdating}
-          >
-            🗑️ Clear Cart
-          </button>
+          <h1 className="cart-title-centered">Shopping Cart</h1>
+          <p className="cart-subtitle-centered">
+            Review your selected items before purchase. Enjoy a seamless shopping experience!
+          </p>
         </div>
 
+        {/* Urgency Purple Banner */}
+        <div className="cart-urgency-banner">
+          <span>You're out of time! Checkout now to avoid losing your order!</span>
+        </div>
+
+        {/* Main Cart Layout */}
         <div className="cart-page-layout">
-          {/* LEFT COLUMN: Items List */}
+          {/* LEFT COLUMN: Items Table */}
           <div className="cart-items-column">
-            <div className="cart-items-card">
+            <div className="cart-items-table-card">
               <div className="cart-table-head">
                 <span className="col-product">Product</span>
                 <span className="col-price">Price</span>
                 <span className="col-qty">Quantity</span>
-                <span className="col-subtotal">Subtotal</span>
+                <span className="col-total">Total</span>
               </div>
 
               <div className="cart-items-list">
                 {cart.map((item) => {
                   const price = Number(item.price) || 0;
                   const qty = Number(item.quantity) || 1;
-                  const itemSubtotal = price * qty;
+                  const itemTotal = price * qty;
                   const productUrl = `/product/${encodeURIComponent(item.name.toLowerCase())}`;
 
                   return (
@@ -235,13 +282,10 @@ const CartPage = () => {
                             {item.name}
                           </a>
                           {item.size && (
-                            <div className="cart-item-size-pill">
-                              Size: <strong>{item.size}</strong>
+                            <div className="cart-item-size-text">
+                              Size: {item.size}
                             </div>
                           )}
-                          <div className="cart-item-mobile-price">
-                            ₹{price.toLocaleString('en-IN')}
-                          </div>
                           <button
                             type="button"
                             className="cart-item-btn-remove"
@@ -253,28 +297,30 @@ const CartPage = () => {
                       </div>
 
                       <div className="cart-item-price-cell">
-                        ₹{price.toLocaleString('en-IN')}
+                        Rs. {price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
 
                       <div className="cart-item-qty-cell">
-                        <div className="cart-qty-picker">
+                        <div className="cart-qty-stepper-box">
                           <button
                             type="button"
+                            className="qty-stepper-btn"
                             onClick={() => handleUpdateQty(item.id, qty - 1)}
                             title="Decrease quantity"
                           >-</button>
-                          <span>{qty}</span>
+                          <span className="qty-stepper-val">{qty}</span>
                           <button
                             type="button"
+                            className="qty-stepper-btn"
                             onClick={() => handleUpdateQty(item.id, qty + 1)}
                             disabled={qty >= 5}
-                            title={qty >= 5 ? 'Maximum 5 units allowed' : 'Increase quantity'}
+                            title={qty >= 5 ? 'Maximum 5 allowed' : 'Increase quantity'}
                           >+</button>
                         </div>
                       </div>
 
-                      <div className="cart-item-subtotal-cell">
-                        ₹{itemSubtotal.toLocaleString('en-IN')}
+                      <div className="cart-item-total-cell">
+                        Rs. {itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   );
@@ -285,37 +331,145 @@ const CartPage = () => {
                 <a href="/" className="cart-link-continue">
                   ← Continue Shopping
                 </a>
+                <button
+                  type="button"
+                  className="cart-btn-clear-subtle"
+                  onClick={handleClearCart}
+                  disabled={isUpdating}
+                >
+                  Clear All
+                </button>
               </div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Order Summary Card */}
+          {/* RIGHT COLUMN: Sidebar Summary & Coupon */}
           <div className="cart-summary-column">
-            <div className="cart-summary-card">
-              <h3 className="cart-summary-title">Order Summary</h3>
+            <div className="cart-summary-sidebar-box">
+              {/* COUPON CODE BLOCK */}
+              <div className="cart-coupon-section">
+                <div className="cart-coupon-heading-row">
+                  <label className="cart-coupon-title-label">COUPON CODE</label>
+                  <button
+                    type="button"
+                    className="cart-toggle-offers-link"
+                    onClick={() => setShowOffers(prev => !prev)}
+                  >
+                    {showOffers ? 'Hide Offers ▴' : 'View Offers ▾'}
+                  </button>
+                </div>
 
-              <div className="cart-summary-breakdown">
-                <div className="cart-summary-row">
-                  <span>Subtotal ({totalItemsCount} items)</span>
-                  <span>₹{subtotal.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="cart-summary-row">
-                  <span>Delivery Charges</span>
-                  <span className="cart-free-tag">FREE</span>
-                </div>
-                <div className="cart-summary-row cart-grand-row">
-                  <span>Estimated Total</span>
-                  <span className="cart-grand-val">₹{grandTotal.toLocaleString('en-IN')}</span>
-                </div>
-                <small className="cart-tax-notice">✓ Inclusive of all taxes</small>
+                {appliedCoupon ? (
+                  <div className="cart-coupon-applied-pill">
+                    <div className="coupon-pill-info">
+                      <span className="coupon-pill-code">✓ {appliedCoupon.code} Applied</span>
+                      <span className="coupon-pill-saving">
+                        -Rs. {discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="coupon-pill-remove"
+                      onClick={handleRemoveCoupon}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="cart-coupon-input-wrap">
+                    <input
+                      type="text"
+                      className="cart-input-coupon-dashed"
+                      placeholder="Enter coupon code"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyCoupon();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="cart-btn-apply-slate"
+                      onClick={() => handleApplyCoupon()}
+                      disabled={!couponInput.trim()}
+                    >
+                      APPLY
+                    </button>
+                  </div>
+                )}
+
+                {couponFeedback.text && (
+                  <div className={`cart-coupon-feedback-msg ${couponFeedback.type}`}>
+                    {couponFeedback.text}
+                  </div>
+                )}
+
+                {/* Available Offers Accordion */}
+                {showOffers && (
+                  <div className="cart-available-offers-list">
+                    <div className="offers-list-title">Available Offers:</div>
+                    {AVAILABLE_COUPONS.map((c) => {
+                      const isEligible = subtotal >= c.minOrder;
+                      const isCur = appliedCoupon?.code === c.code;
+
+                      return (
+                        <div key={c.code} className="offer-mini-card">
+                          <div className="offer-mini-left">
+                            <span className="offer-code-badge">{c.code}</span>
+                            <span className="offer-title-text">{c.title}</span>
+                          </div>
+                          {isCur ? (
+                            <span className="offer-applied-label">APPLIED</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="offer-apply-btn"
+                              onClick={() => handleApplyCoupon(c.code)}
+                              disabled={!isEligible}
+                            >
+                              {isEligible ? 'APPLY' : `Min Rs. ${c.minOrder}`}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
+              {/* Subtotal Block */}
+              <div className="cart-subtotal-block">
+                <div className="cart-subtotal-row">
+                  <span className="subtotal-label">Subtotal</span>
+                  <span className="subtotal-value">
+                    Rs. {grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                {appliedCoupon && (
+                  <div className="cart-subtotal-row discount-row">
+                    <span className="discount-label">Discount ({appliedCoupon.code})</span>
+                    <span className="discount-val">
+                      -Rs. {discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+
+                <div className="cart-tax-note">
+                  Tax included. Shipping calculated at checkout.
+                </div>
+              </div>
+
+              {/* Checkout Button */}
               <button
                 type="button"
-                className="cart-btn-checkout"
+                className="cart-btn-checkout-navy"
                 onClick={() => { window.location.href = '/checkout'; }}
               >
-                PROCEED TO CHECKOUT →
+                Check out
               </button>
             </div>
           </div>

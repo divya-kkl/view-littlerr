@@ -66,6 +66,8 @@ export const createOrderInSupabase = async (orderPayload) => {
       payment_status: orderPayload.payment_status || (orderPayload.payment_method === 'Cash on Delivery' ? 'PENDING' : 'PAID'),
       order_status: orderPayload.order_status || 'PLACED',
       subtotal: subtotal,
+      discount_amount: Number(orderPayload.discount_amount) || 0,
+      coupon_code: orderPayload.coupon_code || null,
       delivery_charge: deliveryCharge,
       total_amount: totalAmount,
       items: Array.isArray(orderPayload.items) ? orderPayload.items : [],
@@ -73,11 +75,25 @@ export const createOrderInSupabase = async (orderPayload) => {
       updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('orders')
       .insert([record])
       .select()
       .single();
+
+    if (error && (error.message?.includes('coupon_code') || error.message?.includes('discount_amount'))) {
+      // Graceful fallback if coupon columns are not created in orders table yet
+      const fallbackRecord = { ...record };
+      delete fallbackRecord.coupon_code;
+      delete fallbackRecord.discount_amount;
+      const fallbackRes = await supabase
+        .from('orders')
+        .insert([fallbackRecord])
+        .select()
+        .single();
+      data = fallbackRes.data;
+      error = fallbackRes.error;
+    }
 
     if (error) throw error;
 

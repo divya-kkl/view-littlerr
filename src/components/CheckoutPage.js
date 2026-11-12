@@ -7,6 +7,13 @@ import {
 import { createOrderInSupabase } from '../services/orderService';
 import { getPaymentMethodsFromSupabase, DEFAULT_PAYMENT_METHODS } from '../services/paymentMethodService';
 import { getUserAddresses, addUserAddress } from '../services/userService';
+import {
+  getStoredCoupon,
+  validateCoupon,
+  saveStoredCoupon,
+  removeStoredCoupon,
+  AVAILABLE_COUPONS
+} from '../services/couponService';
 
 const SAVED_CHECKOUT_KEY = 'sv_saved_checkout_details';
 
@@ -229,11 +236,55 @@ const CheckoutPage = ({ siteSettings }) => {
     setCart(prev => prev.filter(item => item.id !== itemId));
   };
 
-  // Calculations
+  // Calculations & Coupon Handling
   const subtotal = cart.reduce((acc, item) => acc + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
   const deliveryCharge = 0; // Free delivery
-  const totalAmount = subtotal + deliveryCharge;
+
+  const [appliedCoupon, setAppliedCoupon] = useState(() => getStoredCoupon());
+  const [checkoutCouponInput, setCheckoutCouponInput] = useState('');
+  const [checkoutCouponMsg, setCheckoutCouponMsg] = useState({ type: '', text: '' });
+  const [showCheckoutOffers, setShowCheckoutOffers] = useState(false);
+
+  useEffect(() => {
+    if (appliedCoupon && subtotal > 0) {
+      const res = validateCoupon(appliedCoupon.code, subtotal);
+      if (res.success) {
+        setAppliedCoupon(res.coupon);
+        saveStoredCoupon(res.coupon);
+      } else {
+        setAppliedCoupon(null);
+        removeStoredCoupon();
+        setCheckoutCouponMsg({ type: 'error', text: res.message });
+      }
+    } else if (subtotal === 0 && appliedCoupon) {
+      setAppliedCoupon(null);
+      removeStoredCoupon();
+    }
+  }, [subtotal, appliedCoupon]);
+
+  const discountAmount = appliedCoupon?.discountAmount || 0;
+  const totalAmount = Math.max(0, subtotal - discountAmount + deliveryCharge);
   const totalItemsCount = cart.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0);
+
+  const handleApplyCheckoutCoupon = (codeToApply) => {
+    const code = codeToApply || checkoutCouponInput;
+    const res = validateCoupon(code, subtotal);
+    if (res.success) {
+      setAppliedCoupon(res.coupon);
+      saveStoredCoupon(res.coupon);
+      setCheckoutCouponInput('');
+      setCheckoutCouponMsg({ type: 'success', text: res.message });
+    } else {
+      setCheckoutCouponMsg({ type: 'error', text: res.message });
+    }
+  };
+
+  const handleRemoveCheckoutCoupon = () => {
+    setAppliedCoupon(null);
+    removeStoredCoupon();
+    setCheckoutCouponInput('');
+    setCheckoutCouponMsg({ type: 'info', text: 'Coupon removed.' });
+  };
 
   // Form Change Handler
   const handleChange = (e) => {
@@ -354,6 +405,8 @@ const CheckoutPage = ({ siteSettings }) => {
         order_notes: form.order_notes.trim(),
         payment_method: form.payment_method,
         subtotal: subtotal,
+        discount_amount: discountAmount,
+        coupon_code: appliedCoupon?.code || null,
         delivery_charge: deliveryCharge,
         total_amount: totalAmount,
         items: cart.map(item => ({
@@ -431,6 +484,7 @@ const CheckoutPage = ({ siteSettings }) => {
           }
         }
 
+        removeStoredCoupon();
         window.dispatchEvent(new Event('orderPlaced'));
         window.dispatchEvent(new Event('cartUpdated'));
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1070,12 +1124,108 @@ const CheckoutPage = ({ siteSettings }) => {
                   })}
                 </div>
 
+                {/* Coupon Code Section */}
+                <div className="co-coupon-container">
+                  <div className="co-coupon-top-bar">
+                    <span className="co-coupon-heading">🏷️ Promo / Coupon Code</span>
+                    <button
+                      type="button"
+                      className="co-btn-toggle-offers"
+                      onClick={() => setShowCheckoutOffers(prev => !prev)}
+                    >
+                      {showCheckoutOffers ? 'Hide Offers ▴' : 'View Offers ▾'}
+                    </button>
+                  </div>
+
+                  {appliedCoupon ? (
+                    <div className="co-applied-coupon-pill">
+                      <div className="co-applied-details">
+                        <span className="co-applied-code">✓ {appliedCoupon.code}</span>
+                        <span className="co-applied-saving">Saving ₹{appliedCoupon.discountAmount.toLocaleString('en-IN')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="co-btn-remove-coupon"
+                        onClick={handleRemoveCheckoutCoupon}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="co-coupon-input-wrap">
+                      <input
+                        type="text"
+                        className="co-input-coupon"
+                        placeholder="Enter Coupon Code"
+                        value={checkoutCouponInput}
+                        onChange={(e) => setCheckoutCouponInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleApplyCheckoutCoupon();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="co-btn-apply-coupon"
+                        onClick={() => handleApplyCheckoutCoupon()}
+                        disabled={!checkoutCouponInput.trim()}
+                      >
+                        APPLY
+                      </button>
+                    </div>
+                  )}
+
+                  {checkoutCouponMsg.text && (
+                    <div className={`co-coupon-feedback ${checkoutCouponMsg.type}`}>
+                      {checkoutCouponMsg.text}
+                    </div>
+                  )}
+
+                  {/* Available Offers in Checkout */}
+                  {showCheckoutOffers && (
+                    <div className="co-available-offers-box">
+                      {AVAILABLE_COUPONS.map((c) => {
+                        const isEligible = subtotal >= c.minOrder;
+                        const isCur = appliedCoupon?.code === c.code;
+                        return (
+                          <div key={c.code} className="co-offer-mini-row">
+                            <div className="co-offer-left">
+                              <span className="co-mini-code">{c.code}</span>
+                              <span className="co-mini-title">{c.title}</span>
+                            </div>
+                            {isCur ? (
+                              <span className="co-mini-applied">APPLIED</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="co-btn-apply-mini"
+                                onClick={() => handleApplyCheckoutCoupon(c.code)}
+                                disabled={!isEligible}
+                              >
+                                {isEligible ? 'Apply' : `Min ₹${c.minOrder}`}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 {/* Price Breakdown */}
                 <div className="co-price-breakdown">
                   <div className="co-price-row">
                     <span>Subtotal</span>
                     <span>₹{subtotal.toLocaleString('en-IN')}</span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="co-price-row co-discount-row" style={{ color: '#16a34a', fontWeight: '600' }}>
+                      <span>Coupon Discount ({appliedCoupon.code})</span>
+                      <span style={{ color: '#16a34a', fontWeight: '700' }}>-₹{discountAmount.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
                   <div className="co-price-row">
                     <span>Shipping / Delivery</span>
                     <span className="co-free-shipping">FREE</span>
@@ -1084,6 +1234,11 @@ const CheckoutPage = ({ siteSettings }) => {
                     <span>Total Amount Payable</span>
                     <span className="co-total-value">₹{totalAmount.toLocaleString('en-IN')}</span>
                   </div>
+                  {discountAmount > 0 && (
+                    <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', fontSize: '0.8rem', padding: '0.4rem 0.6rem', borderRadius: '6px', textAlign: 'center', marginTop: '0.35rem' }}>
+                      🎉 You are saving ₹{discountAmount.toLocaleString('en-IN')} on this order!
+                    </div>
+                  )}
                   <span className="co-tax-note">✓ Inclusive of all taxes</span>
                 </div>
 
