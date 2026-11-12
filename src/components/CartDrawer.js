@@ -66,6 +66,9 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem, ini
       return;
     }
 
+    const confirmOrder = window.confirm(`Confirm Your Order:\n\nTotal Amount: ₹${grandTotal.toLocaleString('en-IN')}\nPayment: ${checkoutForm.payment_method}\nDeliver to: ${checkoutForm.customer_name}\n\nDo you want to place this order?`);
+    if (!confirmOrder) return;
+
     setIsSubmittingOrder(true);
     try {
       const orderPayload = {
@@ -142,7 +145,7 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem, ini
                   setOrderSuccess(false);
                   setIsCheckoutStep(false);
                   onClose();
-                  window.location.href = '/account';
+                  window.location.href = '/account?tab=orders#orders';
                 }}
               >
                 📦 VIEW ORDER IN MY ACCOUNT
@@ -350,7 +353,7 @@ const CartDrawer = ({ isOpen, onClose, cart, onUpdateQuantity, onRemoveItem, ini
                           <div className="qty-picker">
                             <button onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
                             <span>{item.quantity}</span>
-                            <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}>+</button>
+                            <button onClick={() => onUpdateQuantity(item.id, Math.min(5, item.quantity + 1))} disabled={item.quantity >= 5} title={item.quantity >= 5 ? "Maximum 5 units allowed" : "Increase quantity"}>+</button>
                           </div>
                           <button className="remove-item-btn" onClick={() => onRemoveItem(item.id)}>Remove</button>
                         </div>

@@ -67,9 +67,10 @@ const CartPage = () => {
       handleRemoveItem(itemId);
       return;
     }
-    setCart(prev => prev.map(item => item.id === itemId ? { ...item, quantity: newQty } : item));
+    const finalQty = Math.min(5, newQty);
+    setCart(prev => prev.map(item => item.id === itemId ? { ...item, quantity: finalQty } : item));
     try {
-      await updateCartItemQuantityInSupabase(itemId, newQty);
+      await updateCartItemQuantityInSupabase(itemId, finalQty);
       window.dispatchEvent(new Event('cartUpdated'));
     } catch (e) {
       console.error(e);
@@ -266,7 +267,8 @@ const CartPage = () => {
                           <button
                             type="button"
                             onClick={() => handleUpdateQty(item.id, qty + 1)}
-                            title="Increase quantity"
+                            disabled={qty >= 5}
+                            title={qty >= 5 ? 'Maximum 5 units allowed' : 'Increase quantity'}
                           >+</button>
                         </div>
                       </div>
@@ -315,31 +317,6 @@ const CartPage = () => {
               >
                 PROCEED TO CHECKOUT →
               </button>
-
-              {/* Trust Badges */}
-              <div className="cart-trust-box">
-                <div className="cart-trust-item">
-                  <span>🔒</span>
-                  <div>
-                    <strong>Secure Checkout</strong>
-                    <small>256-bit encrypted transactions</small>
-                  </div>
-                </div>
-                <div className="cart-trust-item">
-                  <span>🚚</span>
-                  <div>
-                    <strong>Fast Insured Shipping</strong>
-                    <small>Dispatched safely across India</small>
-                  </div>
-                </div>
-                <div className="cart-trust-item">
-                  <span>✨</span>
-                  <div>
-                    <strong>100% Guaranteed Quality</strong>
-                    <small>Directly verified from warehouse</small>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

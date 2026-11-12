@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './CheckoutPage.css';
 import { supabase } from '../supabaseClient';
 import {
-  fetchCartItemsFromSupabase,
-  updateCartItemQuantityInSupabase,
-  removeCartItemFromSupabase
+  fetchCartItemsFromSupabase
 } from '../services/cartService';
 import { createOrderInSupabase } from '../services/orderService';
 import { getPaymentMethodsFromSupabase, DEFAULT_PAYMENT_METHODS } from '../services/paymentMethodService';
@@ -22,6 +20,7 @@ const CheckoutPage = ({ siteSettings }) => {
   const [copiedOrder, setCopiedOrder] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('new');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Form State
   const [form, setForm] = useState({
@@ -158,8 +157,21 @@ const CheckoutPage = ({ siteSettings }) => {
 
         if (loadedAddresses.length > 0 && isMounted) {
           setSavedAddresses(loadedAddresses);
-          // Default selection to '+ ADD NEW ADDRESS' matching Image 2
-          setSelectedAddressId('new');
+          // Default selection to the first saved address (or marked default)
+          const firstAddr = loadedAddresses.find(a => a.is_default) || loadedAddresses[0];
+          setSelectedAddressId(firstAddr.id);
+          setForm(prev => ({
+            ...prev,
+            customer_name: firstAddr.full_name || prev.customer_name,
+            customer_phone: firstAddr.phone_number || prev.customer_phone,
+            street_address: firstAddr.street_address || '',
+            city: firstAddr.city || '',
+            state: firstAddr.state || 'Tamil Nadu',
+            country: firstAddr.country || 'India',
+            address_type: firstAddr.address_type || 'Home',
+            pincode: firstAddr.pincode || '',
+            order_notes: firstAddr.order_notes || prev.order_notes
+          }));
         }
       } catch (e) {
         console.error('Error fetching saved addresses:', e);
@@ -186,16 +198,6 @@ const CheckoutPage = ({ siteSettings }) => {
 
     loadData();
 
-    // Listen for cart updates
-    const handleCartSync = () => {
-      fetchCartItemsFromSupabase().then(res => {
-        if (res?.success && res.cart && isMounted) {
-          setCart(res.cart);
-        }
-      });
-    };
-    window.addEventListener('cartUpdated', handleCartSync);
-
     // Listen for realtime payment method updates
     const pmChannel = supabase
       .channel('checkout_pm_realtime')
@@ -209,35 +211,22 @@ const CheckoutPage = ({ siteSettings }) => {
 
     return () => {
       isMounted = false;
-      window.removeEventListener('cartUpdated', handleCartSync);
       supabase.removeChannel(pmChannel);
     };
   }, []);
 
-  // Update item quantity
-  const handleUpdateQty = async (itemId, newQty) => {
+  // Update item quantity in Place Order only (does not alter permanent cart)
+  const handleUpdateQty = (itemId, newQty) => {
     if (newQty <= 0) {
       handleRemoveItem(itemId);
       return;
     }
     setCart(prev => prev.map(item => item.id === itemId ? { ...item, quantity: newQty } : item));
-    try {
-      await updateCartItemQuantityInSupabase(itemId, newQty);
-      window.dispatchEvent(new Event('cartUpdated'));
-    } catch (e) {
-      console.error(e);
-    }
   };
 
-  // Remove item
-  const handleRemoveItem = async (itemId) => {
+  // Remove item from Place Order only (does NOT remove from Cart page)
+  const handleRemoveItem = (itemId) => {
     setCart(prev => prev.filter(item => item.id !== itemId));
-    try {
-      await removeCartItemFromSupabase(itemId);
-      window.dispatchEvent(new Event('cartUpdated'));
-    } catch (e) {
-      console.error(e);
-    }
   };
 
   // Calculations
@@ -267,7 +256,7 @@ const CheckoutPage = ({ siteSettings }) => {
       country: addr.country || 'India',
       address_type: addr.address_type || 'Home',
       pincode: addr.pincode || '',
-      order_notes: addr.order_notes || prev.order_notes
+      order_notes: prev.order_notes || addr.order_notes || ''
     }));
   };
 
@@ -283,12 +272,12 @@ const CheckoutPage = ({ siteSettings }) => {
       country: 'India',
       address_type: 'Home',
       pincode: '',
-      order_notes: ''
+      order_notes: prev.order_notes || ''
     }));
   };
 
-  // Handle Submit / Place Order
-  const handlePlaceOrder = async (e) => {
+  // Validate Form and Request Confirmation
+  const handlePlaceOrder = (e) => {
     e.preventDefault();
 
     if (!cart || cart.length === 0) {
@@ -327,6 +316,12 @@ const CheckoutPage = ({ siteSettings }) => {
       return;
     }
 
+    // Open Confirmation Dialog
+    setShowConfirmModal(true);
+  };
+
+  // Perform Order Submission after Confirmation
+  const executeConfirmOrder = async () => {
     setIsSubmitting(true);
 
     try {
@@ -377,9 +372,17 @@ const CheckoutPage = ({ siteSettings }) => {
 
       const res = await createOrderInSupabase(orderPayload);
       if (res.success && res.order) {
+        setShowConfirmModal(false);
         setPlacedOrder(res.order);
         setOrderSuccess(true);
         setCart([]);
+
+        // Save placed order into local orders list for instant account order history
+        try {
+          const myOrders = JSON.parse(localStorage.getItem('sv_my_orders') || '[]');
+          const updatedOrders = [res.order, ...myOrders.filter(o => o.id !== res.order.id)];
+          localStorage.setItem('sv_my_orders', JSON.stringify(updatedOrders));
+        } catch (e) {}
 
         // Auto-save address to user_addresses & localStorage
         let currentUserId = null;
@@ -493,6 +496,11 @@ const CheckoutPage = ({ siteSettings }) => {
                 <h4>Shipping to: {placedOrder.customer_name}</h4>
                 <p>{placedOrder.street_address}, {placedOrder.city}, {placedOrder.state} - {placedOrder.pincode}</p>
                 <p className="co-delivery-phone">Phone: {placedOrder.customer_phone}</p>
+                {placedOrder.order_notes && String(placedOrder.order_notes).trim() && (
+                  <p style={{ marginTop: '0.45rem', fontSize: '0.86rem', color: '#b45309', fontWeight: 600 }}>
+                    📝 <strong>Order Note:</strong> {placedOrder.order_notes}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -521,7 +529,7 @@ const CheckoutPage = ({ siteSettings }) => {
           </div>
 
           <div className="co-success-actions">
-            <a href="/account" className="co-btn-primary">
+            <a href="/account?tab=orders#orders" className="co-btn-primary">
               📦 View My Orders & Tracking
             </a>
             <a href="/" className="co-btn-secondary">
@@ -1124,6 +1132,116 @@ const CheckoutPage = ({ siteSettings }) => {
           </div>
         </form>
       </div>
+
+      {/* LUXURY ORDER CONFIRMATION MODAL */}
+      {showConfirmModal && (
+        <div className="co-confirm-modal-overlay" onClick={() => !isSubmitting && setShowConfirmModal(false)}>
+          <div className="co-confirm-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="co-confirm-modal-header">
+              <div className="co-confirm-modal-title">
+                <span className="co-confirm-icon">🛍️</span>
+                <div>
+                  <h3>Confirm Your Order</h3>
+                  <p>Please review your order details before placing</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="co-confirm-close-btn"
+                onClick={() => !isSubmitting && setShowConfirmModal(false)}
+                disabled={isSubmitting}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="co-confirm-modal-body">
+              {/* Total & Payment Method Card */}
+              <div className="co-confirm-summary-banner">
+                <div>
+                  <span className="co-confirm-sublabel">Total Amount Payable</span>
+                  <div className="co-confirm-amount">₹{totalAmount.toLocaleString('en-IN')}</div>
+                  <span className="co-confirm-items-tag">{totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'} in order</span>
+                </div>
+                <div className="co-confirm-payment-badge">
+                  <span>Payment Mode</span>
+                  <strong>{form.payment_method}</strong>
+                </div>
+              </div>
+
+              {/* Delivery Details */}
+              <div className="co-confirm-section">
+                <div className="co-confirm-section-label">📍 Delivery Address</div>
+                <div className="co-confirm-addr-card">
+                  <strong>{form.customer_name}</strong> • <span>{form.customer_phone}</span>
+                  <p>{form.street_address}{form.landmark ? `, Landmark: ${form.landmark}` : ''}, {form.city}, {form.state} - {form.pincode}</p>
+                </div>
+              </div>
+
+              {/* Order Notes (if present) */}
+              {form.order_notes && String(form.order_notes).trim() && (
+                <div className="co-confirm-section">
+                  <div className="co-confirm-section-label">📝 Delivery Note</div>
+                  <div className="co-confirm-note-box">
+                    "{form.order_notes.trim()}"
+                  </div>
+                </div>
+              )}
+
+              {/* Ordered Items Preview */}
+              <div className="co-confirm-section">
+                <div className="co-confirm-section-label">📦 Items ({cart.length})</div>
+                <div className="co-confirm-items-list">
+                  {cart.map((item, idx) => (
+                    <div key={idx} className="co-confirm-item-row">
+                      <div className="co-confirm-item-left">
+                        {item.image && (
+                          <img src={item.image} alt={item.name} className="co-confirm-item-thumb" onError={(e) => { e.target.style.display = 'none'; }} />
+                        )}
+                        <div>
+                          <div className="co-confirm-item-name">{item.name}</div>
+                          <div className="co-confirm-item-meta">
+                            {item.size ? `Size: ${item.size} • ` : ''}Qty: {item.quantity}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="co-confirm-item-price">
+                        ₹{((Number(item.price) || 0) * (Number(item.quantity) || 1)).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="co-confirm-modal-footer">
+              <button
+                type="button"
+                className="co-confirm-btn-cancel"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={isSubmitting}
+              >
+                ← Back / Review
+              </button>
+              <button
+                type="button"
+                className="co-confirm-btn-confirm"
+                onClick={executeConfirmOrder}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <span className="co-btn-loading">
+                    <span className="co-btn-spinner"></span> Placing Order...
+                  </span>
+                ) : (
+                  <span>✓ Yes, Confirm & Place Order</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

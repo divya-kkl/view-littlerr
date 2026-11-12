@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { toggleWishlist } from '../redux/slices/wishlistSlice';
+import { toggleWishlistInSupabase } from '../services/wishlistService';
 import './CategoryPage.css';
 import { searchProductsInSupabase } from '../services/productService';
 import { getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
 import LoadMoreSection from './LoadMoreSection';
 import SortDropdown from './SortDropdown';
 
-const SearchPage = ({ liveRates = [] }) => {
+const SearchPage = ({ liveRates = [], wishlist: propWishlist, onToggleWishlist }) => {
+  const dispatch = useDispatch();
+  const reduxWishlist = useSelector((state) => state.wishlist?.items || []);
+  const wishlist = Array.isArray(propWishlist) && propWishlist.length > 0 ? propWishlist : reduxWishlist;
+
+  const isItemInWishlist = (prod) => {
+    const pId = String(prod.dbId || prod.id || prod.productCode || prod.name);
+    return Array.isArray(wishlist) && wishlist.some(
+      w => String(w.dbId || w.id || w.product_id || w.name) === pId
+    );
+  };
+
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +137,36 @@ const SearchPage = ({ liveRates = [] }) => {
                     >
                       <img src={product.image} alt={product.name} loading="lazy" />
                       {product.badge && <span className="product-badge">{product.badge}</span>}
+
+                      {/* Floating Wishlist Heart Icon */}
+                      <button
+                        type="button"
+                        className={`wishlist-heart-btn ${isItemInWishlist(product) ? 'in-wishlist' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (typeof onToggleWishlist === 'function') {
+                            onToggleWishlist(product);
+                          } else {
+                            dispatch(toggleWishlist(product));
+                            toggleWishlistInSupabase(product);
+                          }
+                        }}
+                        title={isItemInWishlist(product) ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                        aria-label="Wishlist"
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill={isItemInWishlist(product) ? '#e11d48' : 'none'}
+                          stroke={isItemInWishlist(product) ? '#e11d48' : '#003B2F'}
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                      </button>
                     </div>
 
                     <div className="product-info-box">

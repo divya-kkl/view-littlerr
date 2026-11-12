@@ -17,16 +17,19 @@ import FeaturedProductsPage from './components/FeaturedProductsPage';
 import Footer from './components/Footer';
 import ContactUs from './components/ContactUs';
 import AccountPage from './components/AccountPage';
+import CartPage from './components/CartPage';
 import CheckoutPage from './components/CheckoutPage';
+import WishlistPage from './components/WishlistPage';
 import AdminPanel from './admin/AdminPanel';
 
 import { PRODUCTS } from './data/little_rrData';
 import { getRatesFromSupabase } from './services/rateService';
 import { getSiteSettings } from './services/settingService';
 import { getTagsFromSupabase } from './services/tagService';
+import { fetchWishlistFromSupabase, addToWishlistInSupabase, removeFromWishlistInSupabase } from './services/wishlistService';
 import { supabase } from './supabaseClient';
 import { useDispatch, useSelector } from 'react-redux';
-import { toggleWishlist } from './redux/slices/wishlistSlice';
+import { setWishlist, addToWishlist, removeFromWishlist, toggleWishlist } from './redux/slices/wishlistSlice';
 import { setLiveRates } from './redux/slices/ratesSlice';
 
 function App() {
@@ -102,6 +105,23 @@ function App() {
     fetchTags();
     fetchSettings();
 
+    // Fetch Wishlist from Supabase on load
+    fetchWishlistFromSupabase().then((res) => {
+      if (res && res.wishlist) {
+        dispatch(setWishlist(res.wishlist));
+      }
+    });
+
+    const handleWishlistSync = () => {
+      try {
+        const saved = localStorage.getItem('wishlist');
+        if (saved) {
+          dispatch(setWishlist(JSON.parse(saved)));
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('wishlistUpdated', handleWishlistSync);
+
     // Supabase Realtime Listener for Tags
     const tagChannel = supabase
       .channel('app_tags_realtime')
@@ -111,12 +131,24 @@ function App() {
       .subscribe();
 
     return () => {
+      window.removeEventListener('wishlistUpdated', handleWishlistSync);
       supabase.removeChannel(tagChannel);
     };
   }, [dispatch]);
 
-  const handleToggleWishlist = (product) => {
-    dispatch(toggleWishlist(product));
+  const handleToggleWishlist = async (product) => {
+    const prodId = String(product.dbId || product.id || product.productCode || product.name);
+    const isCurrentlyInWishlist = reduxWishlist.some(
+      (w) => String(w.dbId || w.id || w.product_id || w.name) === prodId
+    );
+
+    if (isCurrentlyInWishlist) {
+      dispatch(removeFromWishlist(prodId));
+      await removeFromWishlistInSupabase(prodId);
+    } else {
+      dispatch(addToWishlist(product));
+      await addToWishlistInSupabase(product);
+    }
   };
 
   const currentRates = goldRates.length > 0 ? goldRates : reduxRates;
@@ -127,13 +159,17 @@ function App() {
   const isSubcategoryRoute = window.location.pathname.startsWith('/subcategory/');
   const isSearchRoute = window.location.pathname.startsWith('/search');
   const isContactRoute = window.location.pathname === '/contact' || window.location.pathname === '/contact-us';
+  const isWishlistRoute = window.location.pathname === '/wishlist' || window.location.pathname === '/my-wishlist';
+  const isCartRoute = window.location.pathname === '/cart' || window.location.pathname === '/shopping-cart';
   const isCheckoutRoute = window.location.pathname === '/checkout' ||
     window.location.pathname === '/order';
   const isAccountRoute = window.location.pathname === '/account' ||
     window.location.pathname === '/profile' ||
     window.location.pathname === '/login' ||
     window.location.pathname === '/register' ||
-    window.location.pathname === '/user';
+    window.location.pathname === '/user' ||
+    window.location.pathname === '/orders' ||
+    window.location.pathname === '/my-orders';
   const isFeaturedRoute = window.location.pathname === '/featured' ||
     window.location.pathname === '/products' ||
     window.location.pathname === '/all-products' ||
@@ -178,8 +214,12 @@ function App() {
 
       {isContactRoute ? (
         <ContactUs siteSettings={siteSettings} isLoadingSettings={isLoadingSettings} />
+      ) : isWishlistRoute ? (
+        <WishlistPage liveRates={currentRates} />
       ) : isAccountRoute ? (
         <AccountPage siteSettings={siteSettings} />
+      ) : isCartRoute ? (
+        <CartPage />
       ) : isCheckoutRoute ? (
         <CheckoutPage siteSettings={siteSettings} liveRates={currentRates} />
       ) : isProductRoute ? (
@@ -190,11 +230,23 @@ function App() {
           onToggleWishlist={handleToggleWishlist}
         />
       ) : isSubcategoryRoute ? (
-        <CategoryPage liveRates={currentRates} />
+        <CategoryPage
+          liveRates={currentRates}
+          wishlist={currentWishlist}
+          onToggleWishlist={handleToggleWishlist}
+        />
       ) : isSearchRoute ? (
-        <SearchPage liveRates={currentRates} />
+        <SearchPage
+          liveRates={currentRates}
+          wishlist={currentWishlist}
+          onToggleWishlist={handleToggleWishlist}
+        />
       ) : isFeaturedRoute ? (
-        <FeaturedProductsPage liveRates={currentRates} />
+        <FeaturedProductsPage
+          liveRates={currentRates}
+          wishlist={currentWishlist}
+          onToggleWishlist={handleToggleWishlist}
+        />
       ) : (
         <>
           <HeroCarousel

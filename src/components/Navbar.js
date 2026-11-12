@@ -20,6 +20,7 @@ const Navbar = ({
   setActiveCategory,
   searchQuery,
   setSearchQuery,
+  wishlistCount,
   logoUrl,
   shopName = '',
   isLoadingSettings,
@@ -80,6 +81,37 @@ const Navbar = ({
       window.removeEventListener('cartUpdated', handleCartSync);
     };
   }, []);
+
+  // Wishlist State for Navbar
+  const [navWishlistCount, setNavWishlistCount] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('wishlist') || '[]');
+      return Array.isArray(saved) ? saved.length : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  useEffect(() => {
+    const handleWishlistSync = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        setNavWishlistCount(Array.isArray(saved) ? saved.length : 0);
+      } catch {
+        setNavWishlistCount(0);
+      }
+    };
+
+    window.addEventListener('wishlistUpdated', handleWishlistSync);
+    window.addEventListener('storage', handleWishlistSync);
+
+    return () => {
+      window.removeEventListener('wishlistUpdated', handleWishlistSync);
+      window.removeEventListener('storage', handleWishlistSync);
+    };
+  }, []);
+
+  const effectiveWishlistCount = typeof wishlistCount === 'number' ? wishlistCount : navWishlistCount;
 
   const handleUpdateNavCartQuantity = async (id, newQty) => {
     setCartItems(prev => {
@@ -507,18 +539,44 @@ const Navbar = ({
             )}
           </div>
 
+          {/* Wishlist Button */}
+          <button
+            type="button"
+            className="vj-wishlist-btn"
+            onClick={() => {
+              window.location.href = '/wishlist';
+            }}
+            title={effectiveWishlistCount > 0 ? `My Wishlist (${effectiveWishlistCount} items)` : 'My Wishlist (Empty)'}
+            aria-label="Wishlist"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill={effectiveWishlistCount > 0 ? '#e11d48' : 'none'}
+              stroke={effectiveWishlistCount > 0 ? '#e11d48' : 'currentColor'}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            {effectiveWishlistCount > 0 && (
+              <span className="vj-wishlist-count-badge">{effectiveWishlistCount}</span>
+            )}
+          </button>
+
           {/* Shopping Cart Button */}
           <button
             type="button"
             className="vj-cart-btn"
             onClick={() => {
-              loadNavCart();
-              setIsCartOpen(true);
+              window.location.href = '/cart';
             }}
             title={cartCount > 0 ? `Shopping Cart (${cartCount} items)` : 'Shopping Cart (Empty)'}
             aria-label="Shopping Cart"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
               <line x1="3" y1="6" x2="21" y2="6" />
               <path d="M16 10a4 4 0 0 1-8 0" />
@@ -536,7 +594,7 @@ const Navbar = ({
             title={currentUser ? ('Account: ' + (currentUser.user_metadata?.full_name || currentUser.email)) : 'Sign In / Register'}
             aria-label="Profile"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
@@ -550,7 +608,7 @@ const Navbar = ({
             title="Search by little_rr name"
             aria-label="Search"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>

@@ -56,9 +56,9 @@ const GoldRateTicker = ({ rates = [], onOpenCalculator, siteSettings, isLoadingS
 
   return (
     <div className="gold-ticker-wrapper">
-      <div className="container ticker-container">
-        <div className="ticker-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {isRatesLoading ? (
+      <div className={`container ticker-container ${topBanners.length > 0 && !isRatesLoading ? 'has-top-banner' : ''}`}>
+        {isRatesLoading ? (
+          <div className="ticker-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
               <span
                 className="ticker-badge-shimmer"
@@ -74,15 +74,12 @@ const GoldRateTicker = ({ rates = [], onOpenCalculator, siteSettings, isLoadingS
                 style={{ display: 'inline-block', width: '220px', height: '14px', borderRadius: '4px' }}
               />
             </div>
-          ) : topBanners.length > 0 ? (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {activeBanner.badgeText && (
-                <span className="live-badge" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  <span className="pulse-dot"></span> {activeBanner.badgeText}
-                </span>
-              )}
-
-              <div className="ticker-rates-content" style={{ display: 'inline-flex', alignItems: 'center' }}>
+          </div>
+        ) : topBanners.length > 0 ? (
+          <>
+            <div className="ticker-spacer" aria-hidden="true" />
+            <div className="ticker-announcement-center">
+              <div className="ticker-rates-content" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                 {activeBanner.link ? (
                   <a
                     href={activeBanner.link}
@@ -108,71 +105,46 @@ const GoldRateTicker = ({ rates = [], onOpenCalculator, siteSettings, isLoadingS
                   </span>
                 )}
               </div>
-
-              {/* Indicator dots if more than 1 banner */}
-              {topBanners.length > 1 && (
-                <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', marginLeft: '6px' }}>
-                  {topBanners.map((_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setCurrentBannerIndex(idx)}
-                      style={{
-                        width: idx === currentBannerIndex ? '14px' : '6px',
-                        height: '6px',
-                        borderRadius: '3px',
-                        border: 'none',
-                        padding: 0,
-                        background: idx === currentBannerIndex ? '#D4AF37' : 'rgba(255, 255, 255, 0.35)',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease'
-                      }}
-                      title={`Go to announcement ${idx + 1}`}
-                      aria-label={`Announcement ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
-          ) : (
-            <>
-              {rates.length > 0 ? (
-                <>
-                  <button
-                    type="button"
-                    className="live-badge live-badge-clickable"
-                    onClick={() => setIsHistoryOpen(true)}
-                    title="Click to view 7-Day Gold & Silver Rate History"
-                    aria-label="View 7-Day Gold & Silver Rate History"
-                  >
-                    <span className="pulse-dot"></span> RATE HISTORY
-                    <svg className="live-badge-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  <div className="ticker-rates-wrapper">
-                    <div className="ticker-rates-content">
-                      <div className="ticker-rates-track">
-                        {rates.map((rate, idx) => (
-                          <React.Fragment key={`orig-${rate.id || idx}`}>
-                            <span className="rate-item">
-                              <strong>{rate.type}:</strong> ₹{rate.amount ? rate.amount.toLocaleString('en-IN') : 'N/A'}
-                            </span>
-                            <span className="divider">|</span>
-                          </React.Fragment>
-                        ))}
-                      </div>
+          </>
+        ) : (
+          <div className="ticker-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {rates.length > 0 ? (
+              <>
+                <button
+                  type="button"
+                  className="live-badge live-badge-clickable"
+                  onClick={() => setIsHistoryOpen(true)}
+                  title="Click to view 7-Day Gold & Silver Rate History"
+                  aria-label="View 7-Day Gold & Silver Rate History"
+                >
+                  <span className="pulse-dot"></span> RATE HISTORY
+                  <svg className="live-badge-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <div className="ticker-rates-wrapper">
+                  <div className="ticker-rates-content">
+                    <div className="ticker-rates-track">
+                      {rates.map((rate, idx) => (
+                        <React.Fragment key={`orig-${rate.id || idx}`}>
+                          <span className="rate-item">
+                            <strong>{rate.type}:</strong> ₹{rate.amount ? rate.amount.toLocaleString('en-IN') : 'N/A'}
+                          </span>
+                          <span className="divider">|</span>
+                        </React.Fragment>
+                      ))}
                     </div>
                   </div>
-                </>
-              ) : (
-                <span className="rate-item" style={{ opacity: 0.9 }}>
-                  Welcome to {siteSettings?.shop_name || 'Sri Vinayaga Moulding'}
-                </span>
-              )}
-            </>
-          )}
-        </div>
+                </div>
+              </>
+            ) : (
+              <span className="rate-item" style={{ opacity: 0.9 }}>
+                Welcome to {siteSettings?.shop_name || 'Sri Vinayaga Moulding'}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="ticker-right">
           <a

@@ -5,6 +5,8 @@ import './ProductDetailsPage.css';
 import { getProductsFromSupabase } from '../services/productService';
 import { calculateFinalPrice } from '../admin/product/ProductPriceCalculator';
 import { setCurrentProduct, setActiveImage as setReduxActiveImage } from '../redux/slices/productsSlice';
+import { toggleWishlist } from '../redux/slices/wishlistSlice';
+import { toggleWishlistInSupabase } from '../services/wishlistService';
 import CartDrawer from './CartDrawer';
 import {
   addToCartInSupabase,
@@ -100,6 +102,24 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
       return [];
     }
   });
+
+  const isCurrentInWishlist = Boolean(
+    product && Array.isArray(wishlist) && wishlist.some(
+      w => String(w.dbId || w.id || w.product_id || w.name) === String(product.dbId || product.id || product.productCode || product.name)
+    )
+  );
+
+  const handleToggleProductWishlist = () => {
+    if (!product) return;
+    if (typeof onToggleWishlist === 'function') {
+      onToggleWishlist(product);
+    } else {
+      dispatch(toggleWishlist(product));
+      toggleWishlistInSupabase(product);
+    }
+    setToastMsg(isCurrentInWishlist ? `Removed "${product.name}" from Wishlist` : `Saved "${product.name}" to Wishlist!`);
+    setTimeout(() => setToastMsg(''), 2500);
+  };
 
   // Load existing cart items from Supabase cart_items table
   useEffect(() => {
@@ -488,51 +508,107 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
   if (loading) {
     return (
       <div className="product-details-page animate-fade-in">
-        <div className="pd-breadcrumb-container">
-          <div className="pd-shimmer" style={{ width: '180px', height: '18px', borderRadius: '4px', marginBottom: '20px' }}></div>
+        {/* 1. Breadcrumbs Shimmer */}
+        <div className="pd-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+          <div className="pd-shimmer" style={{ width: '22px', height: '16px', borderRadius: '4px' }} />
+          <span className="pd-breadcrumb-sep">&gt;</span>
+          <div className="pd-shimmer" style={{ width: '85px', height: '16px', borderRadius: '4px' }} />
+          <span className="pd-breadcrumb-sep">&gt;</span>
+          <div className="pd-shimmer" style={{ width: '140px', height: '16px', borderRadius: '4px' }} />
         </div>
+
+        {/* 2. Main Product Card Shimmer */}
         <div className="product-details-container">
           <div className="product-details-grid">
-            <div className="product-img-box" style={{ background: '#FFF', display: 'flex', flexDirection: 'column', gap: '15px', padding: '20px' }}>
-              <div className="pd-shimmer" style={{ width: '100%', height: '460px', borderRadius: '12px' }} />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div className="pd-shimmer" style={{ width: '80px', height: '80px', borderRadius: '8px' }} />
-                <div className="pd-shimmer" style={{ width: '80px', height: '80px', borderRadius: '8px' }} />
-                <div className="pd-shimmer" style={{ width: '80px', height: '80px', borderRadius: '8px' }} />
+            {/* Left Column: Vertical Thumbnails Strip + Main Large Image */}
+            <div className="product-img-box">
+              <div className="product-gallery-layout">
+                {/* Vertical Thumbnails on the left */}
+                <div className="pd-thumbnails-vertical">
+                  <div className="pd-shimmer pd-thumbnail-item" style={{ border: 'none' }} />
+                  <div className="pd-shimmer pd-thumbnail-item" style={{ border: 'none' }} />
+                  <div className="pd-shimmer pd-thumbnail-item" style={{ border: 'none' }} />
+                  <div className="pd-shimmer pd-thumbnail-item" style={{ border: 'none' }} />
+                </div>
+
+                {/* Main Large Image Container */}
+                <div className="product-main-img-container" style={{ border: 'none', background: '#f8fafc' }}>
+                  <div className="pd-shimmer" style={{ width: '100%', height: '100%', borderRadius: '16px' }} />
+                </div>
               </div>
             </div>
 
+            {/* Right Column: Info, Specs, Pricing & Actions */}
             <div className="product-info-section">
-              <div className="product-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className="pd-shimmer" style={{ width: '45%', height: '32px', borderRadius: '6px' }} />
+              {/* Product Header: Title & Share Button */}
+              <div className="product-header" style={{ marginBottom: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="pd-shimmer" style={{ width: '70%', height: '34px', borderRadius: '6px' }} />
                 <div className="pd-shimmer" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
               </div>
 
-
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '2rem' }}>
-                <div className="pd-shimmer" style={{ width: '85%', height: '14px', borderRadius: '4px' }} />
-                <div className="pd-shimmer" style={{ width: '60%', height: '14px', borderRadius: '4px' }} />
+              {/* Status / Code Pill */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '1.4rem' }}>
+                <div className="pd-shimmer" style={{ width: '110px', height: '24px', borderRadius: '4px' }} />
+                <div className="pd-shimmer" style={{ width: '95px', height: '24px', borderRadius: '4px' }} />
               </div>
 
-              <div className="specs-list" style={{ marginBottom: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div className="spec-item" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+              {/* Specifications List */}
+              <div className="specs-list" style={{ marginBottom: '1.8rem' }}>
+                <div className="spec-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="pd-shimmer" style={{ width: '130px', height: '16px', borderRadius: '4px' }} />
+                  <div className="pd-shimmer" style={{ width: '90px', height: '16px', borderRadius: '4px' }} />
+                </div>
+                <div className="spec-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className="pd-shimmer" style={{ width: '150px', height: '16px', borderRadius: '4px' }} />
+                  <div className="pd-shimmer" style={{ width: '110px', height: '16px', borderRadius: '4px' }} />
+                </div>
+                <div className="spec-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="pd-shimmer" style={{ width: '110px', height: '16px', borderRadius: '4px' }} />
+                  <div className="pd-shimmer" style={{ width: '80px', height: '16px', borderRadius: '4px' }} />
+                </div>
+                <div className="spec-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="pd-shimmer" style={{ width: '120px', height: '16px', borderRadius: '4px' }} />
                   <div className="pd-shimmer" style={{ width: '100px', height: '16px', borderRadius: '4px' }} />
                 </div>
-                <div className="spec-item" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                  <div className="pd-shimmer" style={{ width: '150px', height: '16px', borderRadius: '4px' }} />
-                  <div className="pd-shimmer" style={{ width: '70px', height: '16px', borderRadius: '4px' }} />
-                </div>
-                <div className="spec-item" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                  <div className="pd-shimmer" style={{ width: '150px', height: '16px', borderRadius: '4px' }} />
-                  <div className="pd-shimmer" style={{ width: '60px', height: '16px', borderRadius: '4px' }} />
-                </div>
               </div>
 
+              {/* Pricing Section Container */}
+              <div className="pd-price-container" style={{ padding: '1.4rem', background: '#fafaf9', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '1.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px' }}>
+                  <div className="pd-shimmer" style={{ width: '160px', height: '36px', borderRadius: '6px' }} />
+                  <div className="pd-shimmer" style={{ width: '90px', height: '22px', borderRadius: '4px' }} />
+                  <div className="pd-shimmer" style={{ width: '70px', height: '22px', borderRadius: '12px' }} />
+                </div>
+                <div className="pd-shimmer" style={{ width: '280px', height: '14px', borderRadius: '4px' }} />
+              </div>
 
+              {/* Action Buttons (Add to Cart & Buy Now) */}
+              <div style={{ display: 'flex', gap: '14px', marginBottom: '1.6rem' }}>
+                <div className="pd-shimmer" style={{ flex: 1, height: '52px', borderRadius: '8px' }} />
+                <div className="pd-shimmer" style={{ flex: 1, height: '52px', borderRadius: '8px' }} />
+              </div>
 
+              {/* Trust Badges */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <div className="pd-shimmer" style={{ width: '150px', height: '32px', borderRadius: '20px' }} />
+                <div className="pd-shimmer" style={{ width: '165px', height: '32px', borderRadius: '20px' }} />
+                <div className="pd-shimmer" style={{ width: '145px', height: '32px', borderRadius: '20px' }} />
+              </div>
             </div>
+          </div>
+        </div>
+
+        {/* 3. Related Products Section Shimmer */}
+        <div className="pd-related-section" style={{ marginTop: '3.5rem' }}>
+          <div className="pd-shimmer" style={{ width: '240px', height: '28px', borderRadius: '6px', marginBottom: '1.8rem' }} />
+          <div className="pd-related-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ background: '#fff', borderRadius: '12px', padding: '14px', border: '1px solid #f1f5f9', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
+                <div className="pd-shimmer" style={{ width: '100%', height: '210px', borderRadius: '8px', marginBottom: '14px' }} />
+                <div className="pd-shimmer" style={{ width: '75%', height: '18px', borderRadius: '4px', marginBottom: '8px' }} />
+                <div className="pd-shimmer" style={{ width: '45%', height: '20px', borderRadius: '4px' }} />
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -634,7 +710,7 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
       let updated;
       if (existingIndex > -1) {
         updated = [...prev];
-        updated[existingIndex].quantity += quantity;
+        updated[existingIndex].quantity = Math.min(5, updated[existingIndex].quantity + quantity);
       } else {
         updated = [...prev, newItem];
       }
@@ -924,27 +1000,53 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
           <div className="product-info-section">
             <div className="product-header">
               <h1 className="product-title">{product.name}</h1>
-              <button
-                className={`share-btn ${copied ? 'copied' : ''}`}
-                onClick={handleShare}
-                title={copied ? 'Link Copied!' : 'Share Link'}
-                style={{ position: 'relative' }}
-              >
-                {copied ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2e7d32" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
+              <div className="product-header-actions">
+                {/* Luxury Wishlist Button */}
+                <button
+                  type="button"
+                  className={`pd-action-btn pd-wishlist-btn ${isCurrentInWishlist ? 'in-wishlist' : ''}`}
+                  onClick={handleToggleProductWishlist}
+                  title={isCurrentInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                  aria-label="Wishlist"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill={isCurrentInWishlist ? '#e11d48' : 'none'}
+                    stroke={isCurrentInWishlist ? '#e11d48' : '#334155'}
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                   </svg>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="18" cy="5" r="3"></circle>
-                    <circle cx="6" cy="12" r="3"></circle>
-                    <circle cx="18" cy="19" r="3"></circle>
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                  </svg>
-                )}
-                {copied && <span className="share-copied-tooltip">Copied!</span>}
-              </button>
+                </button>
+
+                {/* Professional Share Button */}
+                <button
+                  type="button"
+                  className={`pd-action-btn pd-share-btn share-btn ${copied ? 'copied' : ''}`}
+                  onClick={handleShare}
+                  title={copied ? 'Link Copied!' : 'Share Product'}
+                  aria-label="Share"
+                >
+                  {copied ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="18" cy="5" r="3"></circle>
+                      <circle cx="6" cy="12" r="3"></circle>
+                      <circle cx="18" cy="19" r="3"></circle>
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                  )}
+                  {copied && <span className="share-copied-tooltip">Copied!</span>}
+                </button>
+              </div>
             </div>
 
 
@@ -1085,7 +1187,7 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
               </div>
             )}
 
-            {/* 3. Quantity Selector */}
+            {/* 3. Quantity Selector (Allowed maximum: 5) */}
             <div className="pd-quantity-row">
               <span className="pd-quantity-label">Quantity:</span>
               <div className="pd-quantity-picker">
@@ -1095,6 +1197,7 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
                   disabled={quantity <= 1 || isSelectedSizeOutOfStock}
                   aria-label="Decrease quantity"
+                  title="Decrease quantity"
                 >
                   −
                 </button>
@@ -1102,9 +1205,10 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
                 <button
                   type="button"
                   className="pd-qty-btn plus"
-                  onClick={() => setQuantity(q => q + 1)}
-                  disabled={isSelectedSizeOutOfStock}
+                  onClick={() => setQuantity(q => Math.min(5, q + 1))}
+                  disabled={quantity >= 5 || isSelectedSizeOutOfStock}
                   aria-label="Increase quantity"
+                  title={quantity >= 5 ? 'Maximum 5 units allowed per item' : 'Increase quantity'}
                 >
                   +
                 </button>
@@ -1150,6 +1254,19 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
                   </>
                 )}
               </button>
+
+              {/* Wishlist Button */}
+              <button
+                type="button"
+                className={`pd-btn-wishlist ${isCurrentInWishlist ? 'active' : ''}`}
+                onClick={handleToggleProductWishlist}
+                title={isCurrentInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                aria-label="Wishlist"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill={isCurrentInWishlist ? '#e11d48' : 'none'} stroke={isCurrentInWishlist ? '#e11d48' : '#003B2F'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </button>
             </div>
 
 
@@ -1159,12 +1276,20 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
               createPortal(
                 <div className="pd-cart-toast-top">
                   <div className="pd-toast-icon-wrap">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
+                    {toastMsg.toLowerCase().includes('wishlist') ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#e11d48" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    )}
                   </div>
                   <div className="pd-toast-text-wrap">
-                    <span className="pd-toast-title">Added to Cart!</span>
+                    <span className="pd-toast-title">
+                      {toastMsg.toLowerCase().includes('wishlist') ? 'Wishlist' : 'Added to Cart!'}
+                    </span>
                     <span className="pd-toast-desc">{toastMsg}</span>
                   </div>
                   <button
@@ -1172,10 +1297,10 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
                     className="pd-toast-action-btn"
                     onClick={() => {
                       setToastMsg('');
-                      setIsCartOpen(true);
+                      window.location.href = toastMsg.toLowerCase().includes('wishlist') ? '/wishlist' : '/cart';
                     }}
                   >
-                    View Cart →
+                    {toastMsg.toLowerCase().includes('wishlist') ? 'View Wishlist →' : 'View Cart →'}
                   </button>
                   <button
                     type="button"

@@ -20,11 +20,21 @@ const STATUS_COLORS = {
 
 const AccountPage = ({ siteSettings }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/register') {
+      return 'register';
+    }
+    return 'login';
+  }); // 'login' | 'register'
   const [mainTab, setMainTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('tab') === 'orders' || window.location.hash === '#orders') {
+      if (
+        params.get('tab') === 'orders' ||
+        window.location.hash === '#orders' ||
+        window.location.pathname === '/orders' ||
+        window.location.pathname === '/my-orders'
+      ) {
         return 'orders';
       }
     }
@@ -111,22 +121,32 @@ const AccountPage = ({ siteSettings }) => {
       checkSession();
     };
 
-    const handleHashChange = () => {
-      if (window.location.hash === '#orders') {
+    const handleUrlTabSync = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (
+        params.get('tab') === 'orders' ||
+        window.location.hash === '#orders' ||
+        window.location.pathname === '/orders' ||
+        window.location.pathname === '/my-orders'
+      ) {
         setMainTab('orders');
-      } else if (window.location.hash === '#profile') {
+      } else if (params.get('tab') === 'profile' || window.location.hash === '#profile') {
         setMainTab('profile');
       }
     };
 
+    handleUrlTabSync();
+
     window.addEventListener('orderPlaced', handleOrderSync);
     window.addEventListener('storage', handleOrderSync);
-    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('hashchange', handleUrlTabSync);
+    window.addEventListener('popstate', handleUrlTabSync);
 
     return () => {
       window.removeEventListener('orderPlaced', handleOrderSync);
       window.removeEventListener('storage', handleOrderSync);
-      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('hashchange', handleUrlTabSync);
+      window.removeEventListener('popstate', handleUrlTabSync);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -211,19 +231,22 @@ const AccountPage = ({ siteSettings }) => {
     });
 
     if (res.success) {
-      if (res.session) {
-        setCurrentUser(res.user);
-        const redirected = await handlePostAuthAction();
-        if (redirected) return;
-        const addrRes = await getUserAddresses(res.user.id, res.user.email);
-        if (addrRes.success && addrRes.data) {
-          setUserAddresses(addrRes.data);
-        }
-      } else {
-        setSuccessMsg('Account created successfully! You can now sign in.');
-        setActiveTab('login');
-        setLoginEmail(regEmail);
+      // After creating account, always switch to the Sign In (login) page
+      try {
+        await logoutUser();
+      } catch (err) {
+        console.warn('Error clearing auto session on signup:', err);
       }
+      setCurrentUser(null);
+      setSuccessMsg('Account created successfully! Please sign in with your email and password.');
+      setActiveTab('login');
+      setLoginEmail(regEmail);
+      setLoginPassword('');
+      setRegPassword('');
+      if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', '/login');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setErrorMsg(res.error || 'Registration failed. Please try again.');
     }
@@ -357,6 +380,27 @@ const AccountPage = ({ siteSettings }) => {
                     </span>
                   </div>
                 </div>
+
+                {order.order_notes && String(order.order_notes).trim() && (
+                  <div className="user-order-notes-bar" style={{
+                    marginTop: '10px',
+                    padding: '8px 12px',
+                    background: 'rgba(212, 175, 55, 0.08)',
+                    borderLeft: '3px solid #D4AF37',
+                    borderRadius: '4px',
+                    fontSize: '0.84rem',
+                    color: '#334155',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '6px',
+                    lineHeight: 1.45
+                  }}>
+                    <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>📝</span>
+                    <div>
+                      <strong style={{ color: '#003B2F' }}>Order Note:</strong> {order.order_notes}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -392,11 +436,7 @@ const AccountPage = ({ siteSettings }) => {
               <div className="account-shimmer-line line-btn-nav account-shimmer-wave"></div>
               <div className="account-shimmer-line line-btn-nav account-shimmer-wave"></div>
               <div className="profile-divider"></div>
-              <div className="account-shimmer-meta">
-                <div className="account-shimmer-line line-meta-row account-shimmer-wave"></div>
-                <div className="account-shimmer-line line-meta-row account-shimmer-wave"></div>
-                <div className="account-shimmer-line line-meta-row account-shimmer-wave"></div>
-              </div>
+              <div className="account-shimmer-line line-btn-nav account-shimmer-wave" style={{ height: '42px', marginTop: '10px' }}></div>
             </div>
 
             {/* Right details shimmer */}
@@ -521,40 +561,6 @@ const AccountPage = ({ siteSettings }) => {
               </div>
 
               <div className="profile-divider"></div>
-
-              <div className="profile-meta-list">
-                <div className="profile-meta-item">
-                  <span className="profile-meta-label">Email:</span>
-                  <span className="profile-meta-value">{currentUser.email}</span>
-                </div>
-
-                {displayPhone && (
-                  <div className="profile-meta-item">
-                    <span className="profile-meta-label">Phone:</span>
-                    <span className="profile-meta-value">📞 {displayPhone}</span>
-                  </div>
-                )}
-
-                {displayGender && (
-                  <div className="profile-meta-item">
-                    <span className="profile-meta-label">Gender:</span>
-                    <span className="profile-meta-value">👤 {displayGender}</span>
-                  </div>
-                )}
-
-                <div className="profile-meta-item">
-                  <span className="profile-meta-label">Joined:</span>
-                  <span className="profile-meta-value">
-                    {currentUser.created_at
-                      ? new Date(currentUser.created_at).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      })
-                      : 'Member'}
-                  </span>
-                </div>
-              </div>
 
               <button
                 type="button"
