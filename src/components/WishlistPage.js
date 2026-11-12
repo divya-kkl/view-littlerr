@@ -4,7 +4,8 @@ import './WishlistPage.css';
 import { addToCartInSupabase } from '../services/cartService';
 import {
   fetchWishlistFromSupabase,
-  removeFromWishlistInSupabase
+  removeFromWishlistInSupabase,
+  matchesWishlistItem
 } from '../services/wishlistService';
 import { removeFromWishlist, setWishlist } from '../redux/slices/wishlistSlice';
 import { getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
@@ -43,7 +44,12 @@ const WishlistPage = ({ liveRates = [] }) => {
   useEffect(() => {
     loadWishlist();
 
-    const handleSync = () => loadWishlist();
+    const handleSync = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]');
+        setWishlistItems(saved);
+      } catch (e) {}
+    };
     window.addEventListener('wishlistUpdated', handleSync);
     window.addEventListener('storage', handleSync);
 
@@ -61,13 +67,13 @@ const WishlistPage = ({ liveRates = [] }) => {
   };
 
   const handleRemove = async (item) => {
-    const id = String(item.dbId || item.id || item.product_id || item.name);
+    const id = String(item.product_id || item.dbId || item.id || item.name || '');
     try {
       setWishlistItems(prev =>
-        prev.filter(w => String(w.dbId || w.id || w.product_id || w.name) !== id)
+        prev.filter(w => !matchesWishlistItem(w, id, item.name))
       );
       dispatch(removeFromWishlist(id));
-      await removeFromWishlistInSupabase(id);
+      await removeFromWishlistInSupabase(item);
       showToast(`Removed "${item.name}" from your Wishlist.`);
     } catch (e) {
       console.error(e);
@@ -75,7 +81,7 @@ const WishlistPage = ({ liveRates = [] }) => {
   };
 
   const handleMoveToCart = async (item) => {
-    const id = String(item.dbId || item.id || item.product_id || item.name);
+    const id = String(item.product_id || item.dbId || item.id || item.name || '');
     setMovingId(id);
 
     try {
@@ -98,10 +104,10 @@ const WishlistPage = ({ liveRates = [] }) => {
 
       // 2. Remove from Wishlist
       setWishlistItems(prev =>
-        prev.filter(w => String(w.dbId || w.id || w.product_id || w.name) !== id)
+        prev.filter(w => !matchesWishlistItem(w, id, item.name))
       );
       dispatch(removeFromWishlist(id));
-      await removeFromWishlistInSupabase(id);
+      await removeFromWishlistInSupabase(item);
 
       showToast(`"${item.name}" moved to your Shopping Cart!`);
     } catch (err) {
@@ -192,12 +198,6 @@ const WishlistPage = ({ liveRates = [] }) => {
                       className="wl-product-img"
                     />
 
-                    {/* Hallmark / Purity Badge */}
-                    <div className="wl-media-badge">
-                      <span className="wl-badge-dot" />
-                      <span>{item.purity || 'BIS 916'}</span>
-                    </div>
-
                     {/* Remove Action Button */}
                     <button
                       type="button"
@@ -250,19 +250,15 @@ const WishlistPage = ({ liveRates = [] }) => {
                       )}
                     </div>
 
-                    {/* Specs / Meta Badges */}
-                    <div className="wl-specs-row">
-                      {item.weight && parseFloat(item.weight) > 0 ? (
+                    {/* Specs / Meta Badges (Weight if available) */}
+                    {item.weight && parseFloat(item.weight) > 0 ? (
+                      <div className="wl-specs-row">
                         <div className="wl-spec-badge" title="Net Weight">
                           <span className="wl-spec-icon">⚖️</span>
                           <span>{item.weight}g</span>
                         </div>
-                      ) : null}
-                      <div className="wl-spec-badge" title="Certified Purity">
-                        <span className="wl-spec-icon">✨</span>
-                        <span>{item.purity || '22K Gold'}</span>
                       </div>
-                    </div>
+                    ) : null}
 
                     {/* Primary Action: Move to Cart */}
                     <button

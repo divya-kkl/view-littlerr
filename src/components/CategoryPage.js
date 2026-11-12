@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { toggleWishlist } from '../redux/slices/wishlistSlice';
-import { toggleWishlistInSupabase } from '../services/wishlistService';
+import { toggleWishlistInSupabase, matchesWishlistItem } from '../services/wishlistService';
 import './CategoryPage.css';
 import { getProductsFromSupabase } from '../services/productService';
 import { getSubcategoriesFromSupabase, getChildCategories, getCategoryBreadcrumbs } from '../services/subcategoryService';
@@ -15,9 +15,10 @@ const CategoryPage = ({ liveRates = [], wishlist: propWishlist, onToggleWishlist
   const wishlist = Array.isArray(propWishlist) && propWishlist.length > 0 ? propWishlist : reduxWishlist;
 
   const isItemInWishlist = (prod) => {
-    const pId = String(prod.dbId || prod.id || prod.productCode || prod.name);
+    if (!prod) return false;
+    const pId = String(prod.product_id || prod.dbId || prod.id || prod.productCode || prod.name || '');
     return Array.isArray(wishlist) && wishlist.some(
-      w => String(w.dbId || w.id || w.product_id || w.name) === pId
+      w => matchesWishlistItem(w, pId, prod.name)
     );
   };
 

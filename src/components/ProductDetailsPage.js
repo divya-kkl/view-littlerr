@@ -6,7 +6,7 @@ import { getProductsFromSupabase } from '../services/productService';
 import { calculateFinalPrice } from '../admin/product/ProductPriceCalculator';
 import { setCurrentProduct, setActiveImage as setReduxActiveImage } from '../redux/slices/productsSlice';
 import { toggleWishlist } from '../redux/slices/wishlistSlice';
-import { toggleWishlistInSupabase } from '../services/wishlistService';
+import { toggleWishlistInSupabase, matchesWishlistItem } from '../services/wishlistService';
 import CartDrawer from './CartDrawer';
 import {
   addToCartInSupabase,
@@ -105,7 +105,7 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
 
   const isCurrentInWishlist = Boolean(
     product && Array.isArray(wishlist) && wishlist.some(
-      w => String(w.dbId || w.id || w.product_id || w.name) === String(product.dbId || product.id || product.productCode || product.name)
+      w => matchesWishlistItem(w, product.dbId || product.id || product.productCode || product.name, product.name)
     )
   );
 

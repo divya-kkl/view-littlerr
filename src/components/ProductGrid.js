@@ -5,6 +5,7 @@ import { getProductsFromSupabase } from '../services/productService';
 import { getTagsFromSupabase } from '../services/tagService';
 import { doesProductMatchQuery } from '../utils/tamilSearchHelper';
 import { getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
+import { matchesWishlistItem } from '../services/wishlistService';
 
 const ProductGrid = ({
   title = 'Featured Collection',
@@ -82,9 +83,10 @@ const ProductGrid = ({
     : null;
 
   const isItemInWishlist = (prod) => {
-    const pId = String(prod.dbId || prod.id || prod.productCode || prod.name);
+    if (!prod) return false;
+    const pId = String(prod.product_id || prod.dbId || prod.id || prod.productCode || prod.name || '');
     return Array.isArray(wishlist) && wishlist.some(
-      w => String(w.dbId || w.id || w.product_id || w.name) === pId
+      w => matchesWishlistItem(w, pId, prod.name)
     );
   };
 

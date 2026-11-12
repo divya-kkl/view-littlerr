@@ -26,7 +26,12 @@ import { PRODUCTS } from './data/little_rrData';
 import { getRatesFromSupabase } from './services/rateService';
 import { getSiteSettings } from './services/settingService';
 import { getTagsFromSupabase } from './services/tagService';
-import { fetchWishlistFromSupabase, addToWishlistInSupabase, removeFromWishlistInSupabase } from './services/wishlistService';
+import {
+  fetchWishlistFromSupabase,
+  addToWishlistInSupabase,
+  removeFromWishlistInSupabase,
+  matchesWishlistItem
+} from './services/wishlistService';
 import { supabase } from './supabaseClient';
 import { useDispatch, useSelector } from 'react-redux';
 import { setWishlist, addToWishlist, removeFromWishlist } from './redux/slices/wishlistSlice';
@@ -137,14 +142,14 @@ function App() {
   }, [dispatch]);
 
   const handleToggleWishlist = async (product) => {
-    const prodId = String(product.dbId || product.id || product.productCode || product.name);
+    const prodId = String(product.product_id || product.dbId || product.id || product.productCode || product.name || '');
     const isCurrentlyInWishlist = reduxWishlist.some(
-      (w) => String(w.dbId || w.id || w.product_id || w.name) === prodId
+      (w) => matchesWishlistItem(w, prodId, product.name)
     );
 
     if (isCurrentlyInWishlist) {
       dispatch(removeFromWishlist(prodId));
-      await removeFromWishlistInSupabase(prodId);
+      await removeFromWishlistInSupabase(product);
     } else {
       dispatch(addToWishlist(product));
       await addToWishlistInSupabase(product);

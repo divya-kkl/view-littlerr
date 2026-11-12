@@ -14,6 +14,7 @@ import {
   updateCartItemQuantityInSupabase,
   removeCartItemFromSupabase
 } from '../services/cartService';
+import { deduplicateWishlist } from '../services/wishlistService';
 
 const Navbar = ({
   activeCategory,
@@ -86,7 +87,7 @@ const Navbar = ({
   const [navWishlistCount, setNavWishlistCount] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('wishlist') || '[]');
-      return Array.isArray(saved) ? saved.length : 0;
+      return Array.isArray(saved) ? deduplicateWishlist(saved).length : 0;
     } catch {
       return 0;
     }
@@ -96,7 +97,7 @@ const Navbar = ({
     const handleWishlistSync = () => {
       try {
         const saved = JSON.parse(localStorage.getItem('wishlist') || '[]');
-        setNavWishlistCount(Array.isArray(saved) ? saved.length : 0);
+        setNavWishlistCount(Array.isArray(saved) ? deduplicateWishlist(saved).length : 0);
       } catch {
         setNavWishlistCount(0);
       }
@@ -111,7 +112,9 @@ const Navbar = ({
     };
   }, []);
 
-  const effectiveWishlistCount = typeof wishlistCount === 'number' ? wishlistCount : navWishlistCount;
+  const effectiveWishlistCount = typeof wishlistCount === 'number'
+    ? wishlistCount
+    : navWishlistCount;
 
   const handleUpdateNavCartQuantity = async (id, newQty) => {
     setCartItems(prev => {
@@ -544,7 +547,9 @@ const Navbar = ({
             type="button"
             className="vj-wishlist-btn"
             onClick={() => {
-              window.location.href = '/wishlist';
+              if (window.location.pathname !== '/wishlist') {
+                window.location.href = '/wishlist';
+              }
             }}
             title={effectiveWishlistCount > 0 ? `My Wishlist (${effectiveWishlistCount} items)` : 'My Wishlist (Empty)'}
             aria-label="Wishlist"
