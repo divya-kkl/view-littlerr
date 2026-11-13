@@ -132,16 +132,15 @@ export const fetchWishlistFromSupabase = async () => {
 
   try {
     const user = await getWishlistAuthUser();
+    if (!user) {
+      // User is not logged in -> guest cannot view or add wishlist items
+      return { success: true, wishlist: [] };
+    }
     const sessionId = getWishlistSessionId();
-    const userId = user?.id || null;
+    const userId = user.id;
 
     let query = supabase.from('wishlist_items').select('*').order('created_at', { ascending: false });
-
-    if (userId) {
-      query = query.or(`user_id.eq.${userId},session_id.eq.${sessionId}`);
-    } else {
-      query = query.eq('session_id', sessionId);
-    }
+    query = query.or(`user_id.eq.${userId},session_id.eq.${sessionId}`);
 
     const { data, error } = await query;
     if (error) {
@@ -209,6 +208,12 @@ export const fetchWishlistFromSupabase = async () => {
  * Add product to wishlist (Supabase + localStorage)
  */
 export const addToWishlistInSupabase = async (product) => {
+  const user = await getWishlistAuthUser();
+  if (!user) {
+    console.warn('addToWishlistInSupabase blocked: user is not logged in.');
+    return { success: false, requireLogin: true, message: 'Please sign in to add to wishlist.' };
+  }
+
   const prodId = getProductCanonicalId(product);
   const prodName = product.name || product.product_name || 'Jewellery Item';
   const prodImg = product.image || (product.images && product.images[0]) || product.product_image || '';
@@ -241,9 +246,8 @@ export const addToWishlistInSupabase = async (product) => {
 
   // 2. Persist to Supabase
   try {
-    const user = await getWishlistAuthUser();
     const sessionId = getWishlistSessionId();
-    const userId = user?.id || null;
+    const userId = user.id;
 
     // Delete existing duplicate for this item if any
     let delQuery = supabase.from('wishlist_items').delete();
@@ -375,6 +379,19 @@ export const clearWishlistInSupabase = async () => {
  * Toggle Wishlist item in Supabase + localStorage
  */
 export const toggleWishlistInSupabase = async (product) => {
+  const user = await getWishlistAuthUser();
+  if (!user) {
+    try {
+      localStorage.setItem('pending_wishlist_action', JSON.stringify({
+        action: 'add_to_wishlist',
+        product: product,
+        returnUrl: window.location.pathname + window.location.search
+      }));
+    } catch (e) {}
+    window.location.href = '/account';
+    return { inWishlist: false, requireLogin: true };
+  }
+
   const prodId = getProductCanonicalId(product);
   const prodName = product.name || product.product_name || '';
 

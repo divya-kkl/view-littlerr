@@ -17,6 +17,7 @@ import FeaturedProductsPage from './components/FeaturedProductsPage';
 import Footer from './components/Footer';
 import ContactUs from './components/ContactUs';
 import AccountPage from './components/AccountPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
 import CartPage from './components/CartPage';
 import CheckoutPage from './components/CheckoutPage';
 import WishlistPage from './components/WishlistPage';
@@ -30,7 +31,8 @@ import {
   fetchWishlistFromSupabase,
   addToWishlistInSupabase,
   removeFromWishlistInSupabase,
-  matchesWishlistItem
+  matchesWishlistItem,
+  getWishlistAuthUser
 } from './services/wishlistService';
 import { supabase } from './supabaseClient';
 import { useDispatch, useSelector } from 'react-redux';
@@ -117,7 +119,12 @@ function App() {
       }
     });
 
-    const handleWishlistSync = () => {
+    const handleWishlistSync = async () => {
+      const user = await getWishlistAuthUser();
+      if (!user) {
+        dispatch(setWishlist([]));
+        return;
+      }
       try {
         const saved = localStorage.getItem('wishlist');
         if (saved) {
@@ -142,6 +149,22 @@ function App() {
   }, [dispatch]);
 
   const handleToggleWishlist = async (product) => {
+    if (!product) return;
+
+    // Wishlist requires active customer authentication
+    const user = await getWishlistAuthUser();
+    if (!user) {
+      try {
+        localStorage.setItem('pending_wishlist_action', JSON.stringify({
+          action: 'add_to_wishlist',
+          product: product,
+          returnUrl: window.location.pathname + window.location.search
+        }));
+      } catch (e) {}
+      window.location.href = '/account';
+      return;
+    }
+
     const prodId = String(product.product_id || product.dbId || product.id || product.productCode || product.name || '');
     const isCurrentlyInWishlist = reduxWishlist.some(
       (w) => matchesWishlistItem(w, prodId, product.name)
@@ -160,6 +183,10 @@ function App() {
   const currentWishlist = reduxWishlist;
 
   const isAdminRoute = window.location.pathname === '/admin';
+  const isResetPasswordRoute =
+    window.location.pathname === '/reset-password' ||
+    (window.location.pathname === '/account' && new URLSearchParams(window.location.search).get('tab') === 'reset-password') ||
+    window.location.hash.includes('type=recovery');
   const isProductRoute = window.location.pathname.startsWith('/product/');
   const isSubcategoryRoute = window.location.pathname.startsWith('/subcategory/');
   const isSearchRoute = window.location.pathname.startsWith('/search');
@@ -217,7 +244,9 @@ function App() {
         isOverlay={false}
       />
 
-      {isContactRoute ? (
+      {isResetPasswordRoute ? (
+        <ResetPasswordPage siteSettings={siteSettings} />
+      ) : isContactRoute ? (
         <ContactUs siteSettings={siteSettings} isLoadingSettings={isLoadingSettings} />
       ) : isWishlistRoute ? (
         <WishlistPage liveRates={currentRates} />

@@ -81,8 +81,8 @@
 /* Content Container */
 .account-content-container {
   max-width: 1120px;
-  margin: -24px auto 0;
-  padding: 0 20px;
+  margin: 0 auto;
+  padding: 40px 20px 0;
   position: relative;
   z-index: 2;
 }
@@ -457,6 +457,13 @@
 
 .account-password-input-wrap input {
   padding-right: 44px;
+}
+
+.account-password-input-wrap input::-ms-reveal,
+.account-password-input-wrap input::-ms-clear {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .account-pwd-toggle {

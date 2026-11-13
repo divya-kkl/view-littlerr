@@ -5,10 +5,13 @@ import {
   loginUser,
   registerUser,
   logoutUser,
-  getUserAddresses
+  getUserAddresses,
+  sendPasswordResetEmail,
+  updateUserPassword
 } from '../services/userService';
 import { getUserOrders } from '../services/orderService';
 import { addToCartInSupabase } from '../services/cartService';
+import { addToWishlistInSupabase } from '../services/wishlistService';
 
 const STATUS_COLORS = {
   PLACED: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
@@ -21,11 +24,17 @@ const STATUS_COLORS = {
 const AccountPage = ({ siteSettings }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window !== 'undefined' && window.location.pathname === '/register') {
-      return 'register';
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'reset-password' || window.location.hash.includes('type=recovery')) {
+        return 'reset-password';
+      }
+      if (window.location.pathname === '/register') {
+        return 'register';
+      }
     }
     return 'login';
-  }); // 'login' | 'register'
+  }); // 'login' | 'register' | 'forgot' | 'reset-password'
   const [mainTab, setMainTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -47,8 +56,13 @@ const AccountPage = ({ siteSettings }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
   const [hasPendingAction, setHasPendingAction] = useState(() => {
     return Boolean(localStorage.getItem('pending_cart_action'));
+  });
+  const [hasPendingWishlist, setHasPendingWishlist] = useState(() => {
+    return Boolean(localStorage.getItem('pending_wishlist_action'));
   });
 
   const handlePostAuthAction = async () => {
@@ -72,6 +86,21 @@ const AccountPage = ({ siteSettings }) => {
           }
         }
       }
+
+      const rawWishlistPending = localStorage.getItem('pending_wishlist_action');
+      if (rawWishlistPending) {
+        const pendingWl = JSON.parse(rawWishlistPending);
+        if (pendingWl?.product) {
+          await addToWishlistInSupabase(pendingWl.product);
+          localStorage.removeItem('pending_wishlist_action');
+          setHasPendingWishlist(false);
+          window.dispatchEvent(new Event('wishlistUpdated'));
+          const dest = pendingWl.returnUrl || '/wishlist';
+          window.location.href = dest;
+          return true;
+        }
+      }
+
       const params = new URLSearchParams(window.location.search);
       const redirectUrl = params.get('redirect');
       if (redirectUrl) {
@@ -102,6 +131,52 @@ const AccountPage = ({ siteSettings }) => {
   const [regPincode, setRegPincode] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
 
+  // Forgot & Reset Password states
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    setIsSubmitting(true);
+    const res = await sendPasswordResetEmail(forgotEmail);
+    if (res.success) {
+      setSuccessMsg('Password reset link has been sent to your email! Please check your inbox.');
+      setForgotEmail('');
+    } else {
+      setErrorMsg(res.error || 'Failed to send reset link. Please check the email.');
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleUpdatePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    if (newPassword.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Passwords do not match. Please re-enter.');
+      return;
+    }
+    setIsSubmitting(true);
+    const res = await updateUserPassword(newPassword);
+    if (res.success) {
+      setSuccessMsg('Password updated successfully! Please sign in with your new password.');
+      setActiveTab('login');
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      setErrorMsg(res.error || 'Failed to update password. Reset link may have expired.');
+    }
+    setIsSubmitting(false);
+  };
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     // Instantly load any existing orders from local store
@@ -123,7 +198,9 @@ const AccountPage = ({ siteSettings }) => {
 
     const handleUrlTabSync = () => {
       const params = new URLSearchParams(window.location.search);
-      if (
+      if (params.get('tab') === 'reset-password' || window.location.hash.includes('type=recovery')) {
+        setActiveTab('reset-password');
+      } else if (
         params.get('tab') === 'orders' ||
         window.location.hash === '#orders' ||
         window.location.pathname === '/orders' ||
@@ -253,11 +330,20 @@ const AccountPage = ({ siteSettings }) => {
     setIsSubmitting(false);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
     await logoutUser();
     setCurrentUser(null);
     setUserAddresses([]);
     setActiveTab('login');
+    setSuccessMsg('You have been signed out successfully.');
+    setToastMsg('You have been signed out successfully.');
+    setTimeout(() => setToastMsg(''), 3500);
+    setErrorMsg('');
   };
 
   const meta = currentUser?.user_metadata || {};
@@ -412,15 +498,7 @@ const AccountPage = ({ siteSettings }) => {
   if (isLoading) {
     return (
       <div className="account-page-wrapper">
-        <div className="account-hero-banner account-shimmer-hero">
-          <div className="account-hero-container">
-            <div className="account-shimmer-line line-crumb account-shimmer-wave"></div>
-            <div className="account-shimmer-line line-title account-shimmer-wave"></div>
-            <div className="account-shimmer-line line-subtitle account-shimmer-wave"></div>
-          </div>
-        </div>
-
-        <div className="account-content-container">
+         <div className="account-content-container">
           <div className="account-main-tabs-bar">
             <div className="account-shimmer-pill account-shimmer-wave"></div>
             <div className="account-shimmer-pill account-shimmer-wave"></div>
@@ -468,50 +546,31 @@ const AccountPage = ({ siteSettings }) => {
 
   return (
     <div className="account-page-wrapper">
-      {/* Breadcrumb Header */}
-      <div className="account-hero-banner">
-        <div className="account-hero-container">
-          <div className="account-breadcrumb">
-            <a href="/">Home</a>
-            <span>/</span>
-            <span className="current">{currentUser ? (mainTab === 'orders' ? 'My Orders' : 'My Profile') : (mainTab === 'orders' ? 'My Orders' : 'Customer Sign In')}</span>
-          </div>
-          <h1 className="account-hero-title">
-            {currentUser ? (mainTab === 'orders' ? 'My Orders' : `Welcome, ${displayName}`) : (mainTab === 'orders' ? 'My Orders' : 'Customer Portal')}
-          </h1>
-          <p className="account-hero-subtitle">
-            {mainTab === 'orders'
-              ? 'Track real-time status and view details of your placed orders.'
-              : (currentUser
-                ? 'Manage your personal profile, credentials and shopping preferences.'
-                : 'Sign in to access your account or create a new profile with us.')}
-          </p>
-        </div>
-      </div>
-
       <div className="account-content-container">
-        {/* Top Header Tabs: Profile & Orders */}
-        <div className="account-main-tabs-bar">
-          <button
-            type="button"
-            className={`account-main-tab-btn ${mainTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setMainTab('profile')}
-          >
-            <span className="account-main-tab-icon">👤</span>
-            <span className="account-main-tab-text">Profile</span>
-          </button>
-          <button
-            type="button"
-            className={`account-main-tab-btn ${mainTab === 'orders' ? 'active' : ''}`}
-            onClick={() => setMainTab('orders')}
-          >
-            <span className="account-main-tab-icon">📦</span>
-            <span className="account-main-tab-text">Orders</span>
-            {userOrders.length > 0 && (
-              <span className="account-main-tab-badge">{userOrders.length}</span>
-            )}
-          </button>
-        </div>
+        {/* Top Header Tabs: Profile & Orders - ONLY SHOWN WHEN USER IS LOGGED IN */}
+        {currentUser && (
+          <div className="account-main-tabs-bar">
+            <button
+              type="button"
+              className={`account-main-tab-btn ${mainTab === 'profile' ? 'active' : ''}`}
+              onClick={() => setMainTab('profile')}
+            >
+              <span className="account-main-tab-icon">👤</span>
+              <span className="account-main-tab-text">Profile</span>
+            </button>
+            <button
+              type="button"
+              className={`account-main-tab-btn ${mainTab === 'orders' ? 'active' : ''}`}
+              onClick={() => setMainTab('orders')}
+            >
+              <span className="account-main-tab-icon">📦</span>
+              <span className="account-main-tab-text">Orders</span>
+              {userOrders.length > 0 && (
+                <span className="account-main-tab-badge">{userOrders.length}</span>
+              )}
+            </button>
+          </div>
+        )}
 
         {currentUser ? (
           /* ========================================================
@@ -657,17 +716,18 @@ const AccountPage = ({ siteSettings }) => {
               )}
             </div>
           </div>
-        ) : mainTab === 'orders' ? (
-          /* GUEST ORDERS VIEW */
-          <div className="account-orders-guest-wrapper">
-            {renderOrdersSection()}
-          </div>
         ) : (
           /* ========================================================
-             UNAUTHENTICATED: LOGIN & REGISTER TABS
+             UNAUTHENTICATED: LOGIN & REGISTER TABS ONLY
+             (Order section requires login)
              ======================================================== */
           <div className="account-auth-container">
             <div className="account-auth-box">
+              {mainTab === 'orders' && (
+                <div className="account-alert info" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af', marginBottom: '1.25rem', padding: '0.85rem 1.15rem', borderRadius: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #bfdbfe' }}>
+                  <span>📦 Please sign in with your registered account to view your orders and track real-time delivery status.</span>
+                </div>
+              )}
               {/* Tab Selector */}
               <div className="auth-pill-tabs">
                 <button
@@ -684,11 +744,32 @@ const AccountPage = ({ siteSettings }) => {
                 >
                   ✨ Create Account
                 </button>
+                {activeTab === 'reset-password' && (
+                  <button
+                    type="button"
+                    className="auth-pill-btn active"
+                  >
+                    🔑 Set New Password
+                  </button>
+                )}
+                {activeTab === 'forgot' && (
+                  <button
+                    type="button"
+                    className="auth-pill-btn active"
+                  >
+                    🔑 Reset Password
+                  </button>
+                )}
               </div>
 
               {hasPendingAction && (
                 <div className="account-alert info" style={{ background: '#ecfdf5', borderColor: '#a7f3d0', color: '#047857', marginBottom: '1.25rem', padding: '0.85rem 1.15rem', borderRadius: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #a7f3d0' }}>
                   <span>🔒 Please sign in or create an account to save your selected item to cart & proceed.</span>
+                </div>
+              )}
+              {hasPendingWishlist && (
+                <div className="account-alert info" style={{ background: '#fdf2f8', borderColor: '#fbcfe8', color: '#9d174d', marginBottom: '1.25rem', padding: '0.85rem 1.15rem', borderRadius: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #fbcfe8' }}>
+                  <span>❤️ Please sign in or create an account to save your selected item to your wishlist.</span>
                 </div>
               )}
               {errorMsg && <div className="account-alert error">⚠️ {errorMsg}</div>}
@@ -739,6 +820,29 @@ const AccountPage = ({ siteSettings }) => {
                     </div>
                   </div>
 
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-6px', marginBottom: '14px' }}>
+                    <button
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#003B2F',
+                        fontSize: '0.84rem',
+                        fontWeight: 600,
+                        textDecoration: 'underline',
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                      onClick={() => {
+                        setActiveTab('forgot');
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                      }}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+
                   <button
                     type="submit"
                     className="account-submit-btn"
@@ -751,6 +855,101 @@ const AccountPage = ({ siteSettings }) => {
                     Don't have an account yet?{' '}
                     <span onClick={() => { setActiveTab('register'); setErrorMsg(''); setSuccessMsg(''); }}>
                       Create one now
+                    </span>
+                  </div>
+                </form>
+              )}
+
+              {/* FORGOT PASSWORD FORM */}
+              {activeTab === 'forgot' && (
+                <form onSubmit={handleForgotPasswordSubmit} className="account-form">
+                  <div className="account-input-group">
+                    <label>Registered Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="account-submit-btn"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Sending Reset Link...' : 'Send Password Reset Link'}
+                  </button>
+
+                  <div className="account-form-switch">
+                    Remember your password?{' '}
+                    <span onClick={() => { setActiveTab('login'); setErrorMsg(''); setSuccessMsg(''); }}>
+                      Sign in here
+                    </span>
+                  </div>
+                </form>
+              )}
+
+              {/* SET NEW PASSWORD FORM (WHEN ARRIVING FROM EMAIL LINK) */}
+              {activeTab === 'reset-password' && (
+                <form onSubmit={handleUpdatePasswordSubmit} className="account-form">
+                  <div className="account-input-group">
+                    <label>New Password * (Min 6 characters)</label>
+                    <div className="account-password-input-wrap">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        placeholder="Enter new password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="account-pwd-toggle"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        aria-label="Toggle password visibility"
+                      >
+                        {showNewPassword ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                            <line x1="1" y1="1" x2="23" y2="23" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="account-input-group">
+                    <label>Confirm New Password *</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="Confirm new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="account-submit-btn"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Updating Password...' : 'Save New Password'}
+                  </button>
+
+                  <div className="account-form-switch">
+                    Already updated?{' '}
+                    <span onClick={() => { setActiveTab('login'); setErrorMsg(''); setSuccessMsg(''); }}>
+                      Go to Sign In
                     </span>
                   </div>
                 </form>
@@ -909,6 +1108,54 @@ const AccountPage = ({ siteSettings }) => {
           </div>
         )}
       </div>
+
+      {/* LUXURY SIGN OUT CONFIRMATION MODAL */}
+      {showLogoutConfirm && (
+        <div className="sv-confirm-modal-overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="sv-confirm-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="sv-confirm-icon-wrap">🚪</div>
+            <h3 className="sv-confirm-title">Sign Out of Account?</h3>
+            <p className="sv-confirm-desc">
+              Are you sure you want to sign out? You will need to sign in again to view your orders and saved details.
+            </p>
+            <div className="sv-confirm-actions">
+              <button
+                type="button"
+                className="sv-confirm-btn-cancel"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="sv-confirm-btn-confirm"
+                onClick={confirmLogout}
+              >
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING TOP TOAST ALERT */}
+      {toastMsg && (
+        <div className="sv-toast-top">
+          <div className="sv-toast-icon-wrap">✓</div>
+          <div className="sv-toast-content">
+            <span className="sv-toast-title">Signed Out</span>
+            <span className="sv-toast-desc">{toastMsg}</span>
+          </div>
+          <button
+            type="button"
+            className="sv-toast-close"
+            onClick={() => setToastMsg('')}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 };

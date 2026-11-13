@@ -33,6 +33,7 @@ const AdminPanel = ({ onClose }) => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -62,7 +63,12 @@ const AdminPanel = ({ onClose }) => {
     setIsLoggingIn(false);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
     await supabase.auth.signOut();
     dispatch(logoutAdmin());
   };
@@ -205,6 +211,35 @@ const AdminPanel = ({ onClose }) => {
           )}
         </div>
       </div>
+
+      {/* LUXURY SIGN OUT CONFIRMATION MODAL */}
+      {showLogoutConfirm && (
+        <div className="sv-confirm-modal-overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="sv-confirm-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="sv-confirm-icon-wrap">🚪</div>
+            <h3 className="sv-confirm-title">Sign Out of Admin Panel?</h3>
+            <p className="sv-confirm-desc">
+              Are you sure you want to sign out? You will need to log in again to manage products, orders, and rates.
+            </p>
+            <div className="sv-confirm-actions">
+              <button
+                type="button"
+                className="sv-confirm-btn-cancel"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="sv-confirm-btn-confirm"
+                onClick={confirmLogout}
+              >
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

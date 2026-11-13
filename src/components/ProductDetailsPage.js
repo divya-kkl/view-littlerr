@@ -109,8 +109,21 @@ const ProductDetailsPage = ({ liveRates = [], wishlist = [], onToggleWishlist })
     )
   );
 
-  const handleToggleProductWishlist = () => {
+  const handleToggleProductWishlist = async () => {
     if (!product) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      try {
+        localStorage.setItem('pending_wishlist_action', JSON.stringify({
+          action: 'add_to_wishlist',
+          product: product,
+          returnUrl: window.location.pathname + window.location.search
+        }));
+      } catch (e) {}
+      window.location.href = '/account';
+      return;
+    }
+
     if (typeof onToggleWishlist === 'function') {
       onToggleWishlist(product);
     } else {
