@@ -5,7 +5,8 @@ import {
   getCurrentUser,
   loginUser,
   registerUser,
-  logoutUser
+  logoutUser,
+  sendPasswordResetEmail
 } from '../services/userService';
 import { addToCartInSupabase } from '../services/cartService';
 
@@ -30,11 +31,14 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
   const [regCountry, setRegCountry] = useState('India');
   const [regPincode, setRegPincode] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
+  const [forgotEmail, setForgotEmail ] = useState('');
 
   // Status & error states
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   // Prevent background body scroll when modal is open
   useEffect(() => {
@@ -64,6 +68,26 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
     setIsLoading(false);
   };
 
+  const handleForgotPasswordSubmit = async (e) => {
+   e.preventDefault();
+   setErrorMsg('');
+   setSuccessMsg('');
+   setIsLoading(true);
+
+
+   const res = await sendPasswordResetEmail(forgotEmail);
+
+   if (res.success) {
+    setSuccessMsg("password reset link has been sent to your email! Please check your inbox. ");
+    setForgotEmail('');
+   }
+   else {
+    setErrorMsg(res.error || 'Failed to send link. Please check the email. ');
+
+   }
+   setIsLoading(false);
+  };
+  
   const handlePostAuthAction = async () => {
     try {
       const rawPending = localStorage.getItem('pending_cart_action');
@@ -111,6 +135,12 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    if (regPassword.length < 8 || !/[A-Z]/.test(regPassword) || !/[0-9]/.test(regPassword)) {
+      setErrorMsg('Please choose a strong password (minimum 8 characters, with at least 1 uppercase letter and 1 number).');
+      return;
+    }
+
     setIsLoading(true);
 
     const res = await registerUser({
@@ -147,10 +177,18 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
     setIsLoading(false);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
     await logoutUser();
     setCurrentUser(null);
     setActiveTab('login');
+    setSuccessMsg('You have been signed out successfully.');
+    setToastMsg('You have been signed out successfully.');
+    setTimeout(() => setToastMsg(''), 3500);
     if (onAuthChange) onAuthChange(null);
   };
 
@@ -163,18 +201,26 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
         <div className="auth-modal-header">
           <div className="auth-header-left">
             <span className="auth-header-icon">
-              {currentUser ? '👤' : (activeTab === 'login' ? '🔐' : '✨')}
+              {currentUser ? '👤' : (activeTab === 'login' ? '🔐' : activeTab === 'register' ? '✨' : '🔑')}
             </span>
             <div>
               <h3 className="auth-modal-title">
                 {currentUser
                   ? 'My Account'
-                  : (activeTab === 'login' ? 'Customer Sign In' : 'Create New Account')}
+                  : (activeTab === 'login'
+                    ? 'Customer Sign In'
+                    : activeTab === 'register'
+                    ? 'Create New Account'
+                    : 'Reset Password')}
               </h3>
               <p className="auth-modal-subtitle">
                 {currentUser
                   ? currentUser.email
-                  : (activeTab === 'login' ? 'Welcome back! Please enter your details.' : 'Join us for exclusive offers and fast checkout.')}
+                  : (activeTab === 'login'
+                    ? 'Welcome back! Please enter your details.'
+                    : activeTab === 'register'
+                    ? 'Join us for exclusive offers and fast checkout.'
+                    : 'Enter your registered email to receive a password reset link.')}
               </p>
             </div>
           </div>
@@ -248,6 +294,20 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
                 </div>
               </div>
 
+              <div className="auth-forgot-link-wrapper">
+                <button
+                  type="button"
+                  className="auth-link-btn"
+                  onClick={() => {
+                    setActiveTab('forgot');
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+
               <button type="submit" className="auth-submit-btn" disabled={isLoading}>
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </button>
@@ -260,6 +320,43 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
                   onClick={() => { setActiveTab('register'); setErrorMsg(''); setSuccessMsg(''); }}
                 >
                   Create Account
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* 3. Forgot Password Form */}
+          {!currentUser && activeTab === 'forgot' && (
+            <form onSubmit={handleForgotPasswordSubmit} className="auth-form-clean">
+              <div className="auth-form-group">
+                <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#334155' }}>
+                  Registered Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="auth-submit-btn" disabled={isLoading}>
+                {isLoading ? 'Sending Link...' : 'Send Reset Link'}
+              </button>
+
+              <div className="auth-switch-prompt">
+                Remembered your password?{' '}
+                <button
+                  type="button"
+                  className="auth-link-btn"
+                  onClick={() => {
+                    setActiveTab('login');
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                  }}
+                >
+                  Back to Sign In
                 </button>
               </div>
             </form>
@@ -474,6 +571,54 @@ const AuthModal = ({ isOpen, onClose, onAuthChange }) => {
           )}
         </div>
       </div>
+
+      {/* LUXURY SIGN OUT CONFIRMATION MODAL */}
+      {showLogoutConfirm && (
+        <div className="sv-confirm-modal-overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="sv-confirm-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="sv-confirm-icon-wrap">🚪</div>
+            <h3 className="sv-confirm-title">Sign Out of Account?</h3>
+            <p className="sv-confirm-desc">
+              Are you sure you want to sign out? You will need to sign in again to view your orders and saved details.
+            </p>
+            <div className="sv-confirm-actions">
+              <button
+                type="button"
+                className="sv-confirm-btn-cancel"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="sv-confirm-btn-confirm"
+                onClick={confirmLogout}
+              >
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING TOP TOAST ALERT */}
+      {toastMsg && (
+        <div className="sv-toast-top">
+          <div className="sv-toast-icon-wrap">✓</div>
+          <div className="sv-toast-content">
+            <span className="sv-toast-title">Signed Out</span>
+            <span className="sv-toast-desc">{toastMsg}</span>
+          </div>
+          <button
+            type="button"
+            className="sv-toast-close"
+            onClick={() => setToastMsg('')}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 

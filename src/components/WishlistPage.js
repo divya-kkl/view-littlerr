@@ -5,7 +5,8 @@ import { addToCartInSupabase } from '../services/cartService';
 import {
   fetchWishlistFromSupabase,
   removeFromWishlistInSupabase,
-  matchesWishlistItem
+  matchesWishlistItem,
+  getWishlistAuthUser
 } from '../services/wishlistService';
 import { removeFromWishlist, setWishlist } from '../redux/slices/wishlistSlice';
 import { getProductPriceInfo } from '../admin/product/ProductPriceCalculator';
@@ -25,26 +26,43 @@ const WishlistPage = ({ liveRates = [] }) => {
 
   const [toastMsg, setToastMsg] = useState('');
   const [movingId, setMovingId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   const loadWishlist = useCallback(async () => {
+    setIsAuthChecking(true);
     try {
+      const user = await getWishlistAuthUser();
+      setCurrentUser(user);
+      if (!user) {
+        setWishlistItems([]);
+        dispatch(setWishlist([]));
+        setIsAuthChecking(false);
+        return;
+      }
       const res = await fetchWishlistFromSupabase();
       if (res && res.wishlist) {
         setWishlistItems(res.wishlist);
         dispatch(setWishlist(res.wishlist));
+      } else {
+        setWishlistItems([]);
       }
     } catch {
-      const saved = localStorage.getItem(WISHLIST_KEY);
-      if (saved) {
-        setWishlistItems(JSON.parse(saved));
-      }
+      setWishlistItems([]);
+    } finally {
+      setIsAuthChecking(false);
     }
   }, [dispatch]);
 
   useEffect(() => {
     loadWishlist();
 
-    const handleSync = () => {
+    const handleSync = async () => {
+      const user = await getWishlistAuthUser();
+      if (!user) {
+        setWishlistItems([]);
+        return;
+      }
       try {
         const saved = JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]');
         setWishlistItems(saved);
@@ -150,7 +168,27 @@ const WishlistPage = ({ liveRates = [] }) => {
 
       {/* Main Content */}
       <div className="wl-container wl-main-content">
-        {wishlistItems.length === 0 ? (
+        {!isAuthChecking && !currentUser ? (
+          /* Unauthenticated State */
+          <div className="wl-empty-card">
+            <div className="wl-empty-art-wrap">
+              <div className="wl-empty-art-circle">
+                <span style={{ fontSize: '2.4rem' }}>🔒</span>
+              </div>
+              <div className="wl-empty-sparkle sparkle-1">✦</div>
+              <div className="wl-empty-sparkle sparkle-2">✦</div>
+            </div>
+
+            <h2 className="wl-empty-title">Sign In Required</h2>
+            <p className="wl-empty-text">
+              You must sign in to your registered account to save items to your Wishlist and access your saved pieces.
+            </p>
+
+            <a href="/account" className="wl-btn-explore-luxury" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+              <span>Sign In / Create Account →</span>
+            </a>
+          </div>
+        ) : wishlistItems.length === 0 ? (
           /* Empty State */
           <div className="wl-empty-card">
             <div className="wl-empty-art-wrap">

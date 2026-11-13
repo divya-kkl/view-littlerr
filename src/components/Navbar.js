@@ -112,9 +112,9 @@ const Navbar = ({
     };
   }, []);
 
-  const effectiveWishlistCount = typeof wishlistCount === 'number'
-    ? wishlistCount
-    : navWishlistCount;
+  const effectiveWishlistCount = currentUser
+    ? (typeof wishlistCount === 'number' ? wishlistCount : navWishlistCount)
+    : 0;
 
   const handleUpdateNavCartQuantity = async (id, newQty) => {
     setCartItems(prev => {
@@ -547,6 +547,10 @@ const Navbar = ({
             type="button"
             className="vj-wishlist-btn"
             onClick={() => {
+              if (!currentUser) {
+                window.location.href = '/account';
+                return;
+              }
               if (window.location.pathname !== '/wishlist') {
                 window.location.href = '/wishlist';
               }

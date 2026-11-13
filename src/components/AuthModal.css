@@ -251,6 +251,13 @@
   padding-right: 44px;
 }
 
+.auth-password-wrapper input::-ms-reveal,
+.auth-password-wrapper input::-ms-clear {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 .auth-password-toggle {
   position: absolute;
   right: 12px;
@@ -336,6 +343,30 @@
   margin-top: 18px;
   font-size: 0.88rem;
   color: #64748b;
+}
+
+/* Forgot Password Link Wrapper */
+.auth-forgot-link-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+  margin-bottom: 15px;
+}
+
+.auth-forgot-link-wrapper .auth-link-btn {
+  font-size: 0.84rem;
+  color: #003B2F;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.auth-forgot-link-wrapper .auth-link-btn:hover {
+  color: #D4AF37;
 }
 
 .auth-link-btn {
